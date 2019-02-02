@@ -57,7 +57,6 @@ class NetSocket
 public:
     NetSocket(boost::asio::io_service& io_service);
     NetSocket(boost::asio::io_service& io_service, NetAddr endPoint);
-    void Bind(NetAddr endPoint);
 
     void SendMessage(NetPacket message, NetAddr recipient, ESendOptions options);
     bool RecvMessage(NetPacket& message, NetAddr& sender);

@@ -181,14 +181,17 @@ boost::asio::io_service io_service;
 
 NetObjectAPI::NetObjectAPI(bool const isHost)
     : m_isHost(isHost)
-    , m_socket(io_service)
 {
     if (isHost)
     {
-        m_socket.Bind(GetHostAddress());
+        m_socket = NetSocket(io_service, GetHostAddress());
+    }
+    else
+    {
+        m_socket = NetSocket(io_service);
     }
     InitMessageFactory();
-    m_socket.SetOnConnectionAddedCallback(
+    m_socket->SetOnConnectionAddedCallback(
         [this](NetAddr address) 
     {
         for (auto const& netObj : m_netObjects)
@@ -196,7 +199,7 @@ NetObjectAPI::NetObjectAPI(bool const isHost)
             netObj.second->OnReplicaAdded(address);
         }
     });
-    m_socket.SetOnConnectionRemovedCallback(
+    m_socket->SetOnConnectionRemovedCallback(
         [this](NetAddr address)
     {
         for (auto const& netObj : m_netObjects)
@@ -218,7 +221,7 @@ void NetObjectAPI::Shutdown()
 
 void NetObjectAPI::Update()
 {
-    m_socket.Update();
+    m_socket->Update();
     ProcessMessages();
     for (auto& it : m_netObjects)
     {
@@ -264,6 +267,15 @@ void NetObjectAPI::InitMessageFactory()
 
 void NetObjectAPI::SendMessage(NetObjectDescriptor const& descriptor, NetMessage const& message, NetAddr const& recipient)
 {
+    if (recipient == m_socket->GetLocalAddress())
+    {
+        auto netObject = m_netObjects[descriptor];
+        if (netObject)
+        {
+            netObject->ReceiveMessage(message, recipient);
+        }
+        return;
+    }
     std::vector<char> buffer;
     boost::iostreams::stream<boost::iostreams::back_insert_device<std::vector<char>> > output_stream(buffer);
     boost::archive::binary_oarchive stream(output_stream, boost::archive::no_header | boost::archive::no_tracking);
@@ -272,7 +284,7 @@ void NetObjectAPI::SendMessage(NetObjectDescriptor const& descriptor, NetMessage
     stream << message.GetMessageID();
     message.Serialize(stream);
     output_stream.flush();
-    m_socket.SendMessage(buffer, recipient, ESendOptions::None);
+    m_socket->SendMessage(buffer, recipient, ESendOptions::None);
 }
 
 NetAddr NetObjectAPI::GetHostAddress() const
@@ -283,7 +295,7 @@ NetAddr NetObjectAPI::GetHostAddress() const
 
 NetAddr NetObjectAPI::GetLocalAddress() const
 {
-    return m_socket.GetLocalAddress();
+    return m_socket->GetLocalAddress();
 }
 
 void NetObjectAPI::ProcessMessages()
@@ -296,7 +308,7 @@ bool NetObjectAPI::ReceiveMessage()
     std::vector<char> recv_buf;
     boost::asio::ip::udp::endpoint addr;
     boost::system::error_code error;
-    if (!m_socket.RecvMessage(recv_buf, addr))
+    if (!m_socket->RecvMessage(recv_buf, addr))
     {
         return false;
     }

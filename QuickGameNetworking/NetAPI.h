@@ -155,7 +155,7 @@ private:
     using NetObjectMap = std::unordered_map <NetObjectDescriptor, NetObject*>;
     NetObjectMap m_netObjects;
     std::unordered_map <size_t, std::function<std::unique_ptr<NetMessage>()>> m_messageFactory;
-    NetSocket m_socket;
+    std::optional<NetSocket> m_socket;
     bool const m_isHost;
 
     static std::unique_ptr<NetObjectAPI> ms_instance;

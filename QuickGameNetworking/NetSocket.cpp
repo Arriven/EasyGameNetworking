@@ -74,20 +74,14 @@ NetPacket NetConnection::GetHeartbeatPacket() const
 }
 
 NetSocket::NetSocket(boost::asio::io_service& io_service)
-    : m_socket(io_service, boost::asio::ip::udp::v4())
+    : NetSocket(io_service, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 0))
 {
-    m_socket.non_blocking(true);
 }
 
 NetSocket::NetSocket(boost::asio::io_service& io_service, NetAddr endPoint)
-    : NetSocket(io_service)
+    : m_socket(io_service, endPoint)
 {
-    m_socket.bind(endPoint);
-}
-
-void NetSocket::Bind(NetAddr endPoint)
-{
-    m_socket.bind(endPoint);
+    m_socket.non_blocking(true);
 }
 
 void NetSocket::SendMessage(NetPacket message, NetAddr recipient, ESendOptions options)
