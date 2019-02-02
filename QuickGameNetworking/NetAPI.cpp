@@ -134,8 +134,7 @@ void NetObject::InitMasterDiscovery()
 {
     RegisterMessageHandler<SetMasterMessage>([this](NetMessage const& message, NetAddr const addr)
     {
-        m_masterAddr.reset(new NetAddr());
-        *m_masterAddr = addr;
+        m_masterAddr = addr;
     });
     if (IsMaster())
     {
@@ -174,26 +173,6 @@ void NetObject::SendDiscoveryMessage()
     if (!IsMaster() && !NetObjectAPI::GetInstance()->IsHost())
     {
         SendToAuthority(SetMasterRequestMessage());
-    }
-}
-
-void NetObject::CheckReplicas()
-{
-    assert(IsMaster());
-
-    auto& replicas = m_masterData->m_replicas;
-    auto replicasToRemoveIt = std::partition(replicas.begin(), replicas.end(), [](ReplicaData const& replica)
-    {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - replica.m_lastHeartbeat).count() < KEEP_AVILE_TIME;
-    });
-    std::vector<ReplicaData> removedReplicas(replicasToRemoveIt, replicas.end());
-    replicas.erase(replicasToRemoveIt, replicas.end());
-    if (m_masterData->m_replicaLeftCallback)
-    {
-        for (auto const& replica : removedReplicas)
-        {
-            m_masterData->m_replicaLeftCallback(replica.m_addr);
-        }
     }
 }
 

@@ -106,12 +106,11 @@ public:
 private:
     void InitMasterDiscovery();
     void SendDiscoveryMessage();
-    void CheckReplicas();
 
 private:
     std::unique_ptr<NetObjectMasterData> m_masterData;
 
-    std::unique_ptr<NetAddr> m_masterAddr;
+    std::optional<NetAddr> m_masterAddr;
     std::unordered_map <size_t, MessageHandler> m_handlers;
     std::chrono::system_clock::time_point m_lastHeartbeat;
 
