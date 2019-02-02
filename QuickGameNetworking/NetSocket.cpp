@@ -8,32 +8,32 @@ size_t constexpr MAX_READ_SIZE = 1024;
 NetConnection::NetConnection(NetAddr const& recepient)
     : m_endPoint(recepient)
 {
-    m_lastRecvAck = std::chrono::system_clock::now();
+    m_lastRecvAckTime = std::chrono::system_clock::now();
 }
 
-std::optional<NetPacket> NetConnection::UpdateSend()
+std::optional<NetBuffer> NetConnection::UpdateSend()
 {
     if (!m_sendQueue.empty())
     {
-        m_lastSentAck = std::chrono::system_clock::now();
-        NetPacket send = m_sendQueue.front();
+        m_lastSentAckTime = std::chrono::system_clock::now();
+        NetBuffer send = m_sendQueue.front();
         m_sendQueue.erase(m_sendQueue.begin());
         return send;
     }
     else if (NeedToSendHeartbeat())
     {
-        m_lastSentAck = std::chrono::system_clock::now();
+        m_lastSentAckTime = std::chrono::system_clock::now();
         return GetHeartbeatPacket();
     }
     return {};
 }
 
-std::optional<NetPacket> NetConnection::UpdateRecv()
+std::optional<NetBuffer> NetConnection::UpdateRecv()
 {
     if (!m_recvQueue.empty())
     {
-        m_lastRecvAck = std::chrono::system_clock::now();
-        NetPacket recv = m_recvQueue.front();
+        m_lastRecvAckTime = std::chrono::system_clock::now();
+        NetBuffer recv = m_recvQueue.front();
         m_recvQueue.erase(m_recvQueue.begin());
         if (!IsHeartbeat(recv))
         {
@@ -43,34 +43,34 @@ std::optional<NetPacket> NetConnection::UpdateRecv()
     return {};
 }
 
-void NetConnection::AddSend(NetPacket const& packet)
+void NetConnection::AddSend(NetBuffer const& packet)
 {
     m_sendQueue.emplace_back(packet);
 }
 
-void NetConnection::AddRecv(NetPacket const& packet)
+void NetConnection::AddRecv(NetBuffer const& packet)
 {
     m_recvQueue.emplace_back(packet);
 }
 
 bool NetConnection::IsConnected() const
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastRecvAck).count() < KEEP_AVILE_TIME;
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastRecvAckTime).count() < KEEP_AVILE_TIME;
 }
 
 bool NetConnection::NeedToSendHeartbeat() const
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastSentAck).count() >= HEARTBEAT_INTERVAL;
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastSentAckTime).count() >= HEARTBEAT_INTERVAL;
 }
 
-bool NetConnection::IsHeartbeat(NetPacket const& packet) const
+bool NetConnection::IsHeartbeat(NetBuffer const& packet) const
 {
     return packet.empty();
 }
 
-NetPacket NetConnection::GetHeartbeatPacket() const
+NetBuffer NetConnection::GetHeartbeatPacket() const
 {
-    return NetPacket();
+    return NetBuffer();
 }
 
 NetSocket::NetSocket(boost::asio::io_service& io_service)
@@ -84,13 +84,13 @@ NetSocket::NetSocket(boost::asio::io_service& io_service, NetAddr endPoint)
     m_socket.non_blocking(true);
 }
 
-void NetSocket::SendMessage(NetPacket message, NetAddr recipient, ESendOptions options)
+void NetSocket::SendMessage(NetBuffer message, NetAddr recipient, ESendOptions options)
 {
     auto& conn = GetOrCreateConnection(recipient);
     conn.AddSend(message);
 }
 
-bool NetSocket::RecvMessage(NetPacket& message, NetAddr& sender)
+bool NetSocket::RecvMessage(NetBuffer& message, NetAddr& sender)
 {
     for (auto& connection : m_connections)
     {
@@ -140,7 +140,7 @@ void NetSocket::ProcessMessages()
 {
     while (true)
     {
-        NetPacket recv_buf;
+        NetBuffer recv_buf;
         recv_buf.resize(MAX_READ_SIZE);
         boost::asio::ip::udp::endpoint sender;
         boost::system::error_code error;

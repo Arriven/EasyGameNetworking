@@ -9,12 +9,12 @@
 
 
 using NetAddr = boost::asio::ip::udp::endpoint;
-using NetPacket = std::vector<char>;
+using NetBuffer = std::vector<char>;
 
 class NetChannel
 {
 private:
-    std::vector<NetPacket> m_queue;
+    std::vector<NetBuffer> m_queue;
     std::chrono::system_clock::time_point m_lastAck;
 };
 
@@ -23,25 +23,25 @@ class NetConnection
 public:
     NetConnection(NetAddr const& recepient);
 
-    std::optional<NetPacket> UpdateSend();
-    std::optional<NetPacket> UpdateRecv();
+    std::optional<NetBuffer> UpdateSend();
+    std::optional<NetBuffer> UpdateRecv();
 
-    void AddSend(NetPacket const& packet);
-    void AddRecv(NetPacket const& packet);
+    void AddSend(NetBuffer const& packet);
+    void AddRecv(NetBuffer const& packet);
 
     bool IsConnected() const;
     NetAddr const& GetEndPoint() const { return m_endPoint; }
 
 private:
     bool NeedToSendHeartbeat() const;
-    bool IsHeartbeat(NetPacket const& packet) const;
-    NetPacket GetHeartbeatPacket() const;
+    bool IsHeartbeat(NetBuffer const& packet) const;
+    NetBuffer GetHeartbeatPacket() const;
 
 private:
-    std::vector<NetPacket> m_sendQueue;
-    std::vector<NetPacket> m_recvQueue;
-    std::chrono::system_clock::time_point m_lastSentAck;
-    std::chrono::system_clock::time_point m_lastRecvAck;
+    std::vector<NetBuffer> m_sendQueue;
+    std::vector<NetBuffer> m_recvQueue;
+    std::chrono::system_clock::time_point m_lastSentAckTime;
+    std::chrono::system_clock::time_point m_lastRecvAckTime;
     NetAddr m_endPoint;
 };
 
@@ -58,8 +58,8 @@ public:
     NetSocket(boost::asio::io_service& io_service);
     NetSocket(boost::asio::io_service& io_service, NetAddr endPoint);
 
-    void SendMessage(NetPacket message, NetAddr recipient, ESendOptions options);
-    bool RecvMessage(NetPacket& message, NetAddr& sender);
+    void SendMessage(NetBuffer message, NetAddr recipient, ESendOptions options);
+    bool RecvMessage(NetBuffer& message, NetAddr& sender);
 
     void Update();
 
