@@ -106,9 +106,7 @@ public:
 private:
     void InitMasterDiscovery();
     void SendDiscoveryMessage();
-    void InitHeartbeatHandler();
     void CheckReplicas();
-    void OnReplicaMessage(NetAddr const& addr);
 
 private:
     std::unique_ptr<NetObjectMasterData> m_masterData;

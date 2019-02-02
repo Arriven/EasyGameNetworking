@@ -3,6 +3,7 @@
 
 size_t constexpr HEARTBEAT_INTERVAL = 5000;
 size_t constexpr KEEP_AVILE_TIME = 2000000;
+size_t constexpr MAX_READ_SIZE = 1024;
 
 NetConnection::NetConnection(NetAddr const& recepient)
     : m_endPoint(recepient)
@@ -119,7 +120,6 @@ void NetSocket::Update()
         while (auto send = connection.UpdateSend())
         {
             boost::system::error_code ignored_error;
-            std::cout << send.value().size() << std::endl;
             m_socket.send_to(boost::asio::buffer(send.value()),
                 connection.GetEndPoint(), 0, ignored_error);
             assert(!ignored_error);
@@ -147,6 +147,7 @@ void NetSocket::ProcessMessages()
     while (true)
     {
         NetPacket recv_buf;
+        recv_buf.resize(MAX_READ_SIZE);
         boost::asio::ip::udp::endpoint sender;
         boost::system::error_code error;
         size_t bytes = m_socket.receive_from(boost::asio::buffer(recv_buf),
@@ -155,7 +156,7 @@ void NetSocket::ProcessMessages()
         {
             return;
         }
-        std::cout << bytes << " " << recv_buf.size() << std::endl;
+        recv_buf.resize(bytes);
         auto& conn = GetOrCreateConnection(sender);
         conn.AddRecv(recv_buf);
     }

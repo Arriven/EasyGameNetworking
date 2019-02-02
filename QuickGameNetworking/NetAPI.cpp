@@ -25,7 +25,6 @@ NetObject::NetObject(bool const isMaster, NetObjectDescriptor const& descriptor)
         m_masterData = std::make_unique<NetObjectMasterData>();
     }
     InitMasterDiscovery();
-    InitHeartbeatHandler();
 }
 
 NetObject::~NetObject()
@@ -35,23 +34,11 @@ NetObject::~NetObject()
 
 void NetObject::Update()
 {
-    if (IsMaster())
-    {
-        //CheckReplicas();
-    }
     if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastHeartbeat).count() > HEARTBEAT_INTERVAL)
     {
         if (!m_masterAddr)
         {
             SendDiscoveryMessage();
-        }
-        else if (IsMaster())
-        {
-          //  SendMasterBroadcast(HeartbeatMessage());
-        }
-        else
-        {
-            //SendReplicaMessage(HeartbeatMessage());
         }
     }
 }
@@ -84,7 +71,7 @@ void NetObject::SendMasterUnicast(NetMessage const& message, NetAddr const& addr
 {
     assert(IsMaster());
     auto& replicas = m_masterData->m_replicas;
-    //assert(std::find_if(replicas.begin(), replicas.end(), [&addr](ReplicaData const& replica) { return replica.m_addr == addr; }) != replicas.end());
+    assert(std::find_if(replicas.begin(), replicas.end(), [&addr](ReplicaData const& replica) { return replica.m_addr == addr; }) != replicas.end());
     NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, addr);
 }
 
@@ -92,7 +79,6 @@ void NetObject::SendReplicaMessage(NetMessage const& message)
 {
     assert(!IsMaster());
     m_lastHeartbeat = std::chrono::system_clock::now();
-    //TODO: send this to master directly
     if (m_masterAddr)
     {
         NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, *m_masterAddr);
@@ -106,10 +92,6 @@ void NetObject::SendToAuthority(NetMessage const& message)
 
 void NetObject::ReceiveMessage(NetMessage const& message, NetAddr const& sender)
 {
-    if (IsMaster() && sender != NetObjectAPI::GetInstance()->GetLocalAddress())
-    {
-        OnReplicaMessage(sender);
-    }
     auto handlerIt = m_handlers.find(message.GetMessageID());
     if (handlerIt != m_handlers.end())
     {
@@ -134,8 +116,8 @@ void NetObject::OnReplicaAdded(NetAddr const& addr)
 {
     if (IsMaster() && m_masterData->m_replicaAddedCallback)
     {
-        m_masterData->m_replicaAddedCallback(addr); 
         m_masterData->m_replicas.push_back({ addr, std::chrono::system_clock::now() });
+        m_masterData->m_replicaAddedCallback(addr); 
     }
 }
 
@@ -166,7 +148,6 @@ void NetObject::InitMasterDiscovery()
             else
             {
                 NetAddr requester(boost::asio::ip::address_v4(message.m_address), message.m_usPort);
-                OnReplicaMessage(requester);
                 SendMasterUnicast(SetMasterMessage(), requester);
             }
         });
@@ -196,11 +177,6 @@ void NetObject::SendDiscoveryMessage()
     }
 }
 
-void NetObject::InitHeartbeatHandler()
-{
-    RegisterMessageHandler<HeartbeatMessage>([this](HeartbeatMessage const& message, NetAddr const& addr) {});
-}
-
 void NetObject::CheckReplicas()
 {
     assert(IsMaster());
@@ -217,24 +193,6 @@ void NetObject::CheckReplicas()
         for (auto const& replica : removedReplicas)
         {
             m_masterData->m_replicaLeftCallback(replica.m_addr);
-        }
-    }
-}
-
-void NetObject::OnReplicaMessage(NetAddr const& addr)
-{
-    auto& replicas = m_masterData->m_replicas;
-    auto replica = std::find_if(replicas.begin(), replicas.end(), [addr](ReplicaData const& element) { return addr == element.m_addr; });
-    if (replica != replicas.end())
-    {
-        replica->m_lastHeartbeat = std::chrono::system_clock::now();
-    }
-    else
-    {
-        replicas.push_back({ addr, std::chrono::system_clock::now() });
-        if (m_masterData->m_replicaAddedCallback)
-        {
-            m_masterData->m_replicaAddedCallback(addr);
         }
     }
 }
@@ -320,7 +278,6 @@ void NetObjectAPI::UnregisterNetObject(NetObjectDescriptor const& descriptor)
 
 void NetObjectAPI::InitMessageFactory()
 {
-    RegisterMessage<HeartbeatMessage>();
     RegisterMessage<TextMessage>();
     RegisterMessage<SetMasterRequestMessage>();
     RegisterMessage<SetMasterMessage>();
