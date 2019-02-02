@@ -37,7 +37,7 @@ void NetObject::Update()
 {
     if (IsMaster())
     {
-        CheckReplicas();
+        //CheckReplicas();
     }
     if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastHeartbeat).count() > HEARTBEAT_INTERVAL)
     {
@@ -47,11 +47,11 @@ void NetObject::Update()
         }
         else if (IsMaster())
         {
-            SendMasterBroadcast(HeartbeatMessage());
+          //  SendMasterBroadcast(HeartbeatMessage());
         }
         else
         {
-            SendReplicaMessage(HeartbeatMessage());
+            //SendReplicaMessage(HeartbeatMessage());
         }
     }
 }
@@ -84,7 +84,7 @@ void NetObject::SendMasterUnicast(NetMessage const& message, NetAddr const& addr
 {
     assert(IsMaster());
     auto& replicas = m_masterData->m_replicas;
-    assert(std::find_if(replicas.begin(), replicas.end(), [&addr](ReplicaData const& replica) { return replica.m_addr == addr; }) != replicas.end());
+    //assert(std::find_if(replicas.begin(), replicas.end(), [&addr](ReplicaData const& replica) { return replica.m_addr == addr; }) != replicas.end());
     NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, addr);
 }
 
@@ -127,6 +127,25 @@ void NetObject::SetOnReplicaLeftCallback(std::function<void(NetAddr const&)> con
 {
     assert(IsMaster());
     m_masterData->m_replicaLeftCallback = callback;
+}
+
+
+void NetObject::OnReplicaAdded(NetAddr const& addr)
+{
+    if (IsMaster() && m_masterData->m_replicaAddedCallback)
+    {
+        m_masterData->m_replicaAddedCallback(addr); 
+        m_masterData->m_replicas.push_back({ addr, std::chrono::system_clock::now() });
+    }
+}
+
+void NetObject::OnReplicaLeft(NetAddr const& addr)
+{
+    if (IsMaster() && m_masterData->m_replicaLeftCallback)
+    {
+        m_masterData->m_replicaLeftCallback(addr);
+        m_masterData->m_replicas.erase(std::find_if(m_masterData->m_replicas.begin(), m_masterData->m_replicas.end(), [addr](auto const& replica) { return replica.m_addr == addr; }));
+    }
 }
 
 void NetObject::InitMasterDiscovery()
@@ -227,13 +246,27 @@ NetObjectAPI::NetObjectAPI(bool const isHost)
     : m_isHost(isHost)
     , m_socket(io_service)
 {
-    m_socket.open(boost::asio::ip::udp::v4());
     if (isHost)
     {
-        m_socket.bind(GetHostAddress());
+        m_socket.Bind(GetHostAddress());
     }
-    m_socket.non_blocking(true);
     InitMessageFactory();
+    m_socket.SetOnConnectionAddedCallback(
+        [this](NetAddr address) 
+    {
+        for (auto const& netObj : m_netObjects)
+        {
+            netObj.second->OnReplicaAdded(address);
+        }
+    });
+    m_socket.SetOnConnectionRemovedCallback(
+        [this](NetAddr address)
+    {
+        for (auto const& netObj : m_netObjects)
+        {
+            netObj.second->OnReplicaLeft(address);
+        }
+    });
 }
 
 void NetObjectAPI::Init(bool const isHost)
@@ -248,6 +281,7 @@ void NetObjectAPI::Shutdown()
 
 void NetObjectAPI::Update()
 {
+    m_socket.Update();
     ProcessMessages();
     for (auto& it : m_netObjects)
     {
@@ -302,9 +336,7 @@ void NetObjectAPI::SendMessage(NetObjectDescriptor const& descriptor, NetMessage
     stream << message.GetMessageID();
     message.Serialize(stream);
     output_stream.flush();
-    boost::system::error_code ignored_error;
-    m_socket.send_to(boost::asio::buffer(buffer),
-        recipient, 0, ignored_error);
+    m_socket.SendMessage(buffer, recipient, ESendOptions::None);
 }
 
 NetAddr NetObjectAPI::GetHostAddress() const
@@ -315,7 +347,7 @@ NetAddr NetObjectAPI::GetHostAddress() const
 
 NetAddr NetObjectAPI::GetLocalAddress() const
 {
-    return m_socket.local_endpoint();
+    return m_socket.GetLocalAddress();
 }
 
 void NetObjectAPI::ProcessMessages()
@@ -328,13 +360,11 @@ bool NetObjectAPI::ReceiveMessage()
     std::vector<char> recv_buf;
     boost::asio::ip::udp::endpoint addr;
     boost::system::error_code error;
-    size_t bytes = m_socket.receive_from(boost::asio::buffer(recv_buf),
-        addr, 0, error);
-    if (error)
+    if (!m_socket.RecvMessage(recv_buf, addr))
     {
         return false;
     }
-    boost::iostreams::basic_array_source<char> source(&recv_buf[0], bytes);
+    boost::iostreams::basic_array_source<char> source(recv_buf.data(), recv_buf.size());
     boost::iostreams::stream< boost::iostreams::basic_array_source <char> > input_stream(source);
     boost::archive::binary_iarchive ia(input_stream, boost::archive::no_header | boost::archive::no_tracking);
     NetObjectDescriptor descriptor;

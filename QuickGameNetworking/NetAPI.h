@@ -8,6 +8,7 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include "NetSocket.h"
 
 
 //TODO: replace with some more advanced hash algorithm like crc32
@@ -99,6 +100,9 @@ public:
     void SetOnReplicaAddedCallback(std::function<void(NetAddr const&)> const& callback);
     void SetOnReplicaLeftCallback(std::function<void(NetAddr const&)> const& callback);
 
+    void OnReplicaAdded(NetAddr const& addr);
+    void OnReplicaLeft(NetAddr const& addr);
+
 private:
     void InitMasterDiscovery();
     void SendDiscoveryMessage();
@@ -154,7 +158,7 @@ private:
     using NetObjectMap = std::unordered_map <NetObjectDescriptor, NetObject*>;
     NetObjectMap m_netObjects;
     std::unordered_map <size_t, std::function<std::unique_ptr<NetMessage>()>> m_messageFactory;
-    boost::asio::ip::udp::socket m_socket;
+    NetSocket m_socket;
     bool const m_isHost;
 
     static std::unique_ptr<NetObjectAPI> ms_instance;

@@ -21,12 +21,18 @@
     <ClInclude Include="Messages.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NetSocket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NetAPI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NetSocket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
