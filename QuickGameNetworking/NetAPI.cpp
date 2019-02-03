@@ -1,11 +1,12 @@
 #include "NetAPI.h"
-#include "Messages.h"
+#include "NetMessages.h"
 #include <boost/iostreams/device/back_inserter.hpp>
 #include <boost/iostreams/stream.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
+#include <boost/range/adaptor/filtered.hpp>
 
 size_t constexpr HEARTBEAT_INTERVAL = 500;
 size_t constexpr KEEP_AVILE_TIME = 2000;
@@ -14,6 +15,21 @@ size_t constexpr HOST_PORT = 8888;
 bool operator==(NetObjectDescriptor const& lhs, NetObjectDescriptor const& rhs)
 {
     return lhs.m_instanceID == rhs.m_instanceID && lhs.m_typeID == rhs.m_typeID;
+}
+
+void NetObjectMessage::Serialize(boost::archive::binary_oarchive& stream) const
+{
+    stream << m_descriptor->m_typeID;
+    stream << m_descriptor->m_instanceID;
+    SerializeData(stream);
+}
+
+void NetObjectMessage::Deserialize(boost::archive::binary_iarchive& stream)
+{
+    m_descriptor.reset(new NetObjectDescriptor);
+    stream >> m_descriptor->m_typeID;
+    stream >> m_descriptor->m_instanceID;
+    DeserializeData(stream);
 }
 
 NetObject::NetObject(bool const isMaster, NetObjectDescriptor const& descriptor)
@@ -43,50 +59,39 @@ void NetObject::Update()
     }
 }
 
-void NetObject::SendMasterBroadcast(NetMessage const& message)
+void NetObject::SendMasterBroadcast(NetObjectMessage& message)
 {
     assert(IsMaster());
-    auto const replicas = NetObjectAPI::GetInstance()->GetConnections();
-    for (auto replica : replicas)
-    {
-        NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, replica);
-    }
+    SendMessage(message, NetObjectAPI::GetInstance()->GetConnections());
 }
 
-void NetObject::SendMasterBroadcastExcluding(NetMessage const& message, NetAddr const& addr)
+void NetObject::SendMasterBroadcastExcluding(NetObjectMessage& message, NetAddr const& addr)
 {
     assert(IsMaster());
-    auto const replicas = NetObjectAPI::GetInstance()->GetConnections();
-    for (auto replica : replicas)
-    {
-        if (replica != addr)
-        {
-            NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, replica);
-        }
-    }
+    SendMessage(message, NetObjectAPI::GetInstance()->GetConnections() | boost::adaptors::filtered([addr](auto const& conn) { return conn != addr; }));
 }
 
-void NetObject::SendMasterUnicast(NetMessage const& message, NetAddr const& addr)
+void NetObject::SendMasterUnicast(NetObjectMessage& message, NetAddr const& addr)
 {
     assert(IsMaster());
     auto const replicas = NetObjectAPI::GetInstance()->GetConnections();
     assert(std::find(replicas.begin(), replicas.end(), addr) != replicas.end());
-    NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, addr);
+    SendMessage(message, addr);
 }
 
-void NetObject::SendReplicaMessage(NetMessage const& message)
+void NetObject::SendReplicaMessage(NetObjectMessage& message)
 {
     assert(!IsMaster());
     m_lastHeartbeat = std::chrono::system_clock::now();
     if (m_masterAddr)
     {
-        NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, *m_masterAddr);
+        SendMessage(message, *m_masterAddr);
     }
 }
 
-void NetObject::SendToAuthority(NetMessage const& message)
+void NetObject::SendToAuthority(NetObjectMessage& message)
 {
-    NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, NetObjectAPI::GetInstance()->GetHostAddress());
+    SendMessage(message, NetObjectAPI::GetInstance()->GetHostAddress());
 }
 
 void NetObject::ReceiveMessage(NetMessage const& message, NetAddr const& sender)
@@ -139,15 +144,18 @@ void NetObject::InitMasterDiscovery()
         {
             if (message.m_address == 0)
             {
-                SendMasterUnicast(SetMasterMessage(), addr);
+                SetMasterMessage msg;
+                SendMasterUnicast(msg, addr);
             }
             else
             {
                 NetAddr requester(boost::asio::ip::address_v4(message.m_address), message.m_usPort);
-                SendMasterUnicast(SetMasterMessage(), requester);
+                SetMasterMessage msg;
+                SendMasterUnicast(msg, addr);
             }
         });
-        SendToAuthority(SetMasterMessage());
+        SetMasterMessage msg;
+        SendToAuthority(msg);
     }
     else if (NetObjectAPI::GetInstance()->IsHost())
     {
@@ -158,7 +166,7 @@ void NetObject::InitMasterDiscovery()
                 SetMasterRequestMessage forwarded;
                 forwarded.m_address = addr.address().to_v4().to_ulong();
                 forwarded.m_usPort = addr.port();
-                NetObjectAPI::GetInstance()->SendMessage(m_descriptor, forwarded, *m_masterAddr);
+                SendMessage(forwarded, *m_masterAddr);
             }
         });
     }
@@ -169,7 +177,8 @@ void NetObject::SendDiscoveryMessage()
     m_lastHeartbeat = std::chrono::system_clock::now();
     if (!IsMaster() && !NetObjectAPI::GetInstance()->IsHost())
     {
-        SendToAuthority(SetMasterRequestMessage());
+        SetMasterRequestMessage msg;
+        SendToAuthority(msg);
     }
 }
 
@@ -252,22 +261,16 @@ void NetObjectAPI::InitMessageFactory()
     RegisterMessage<SetMasterMessage>();
 }
 
-void NetObjectAPI::SendMessage(NetObjectDescriptor const& descriptor, NetMessage const& message, NetAddr const& recipient)
+void NetObjectAPI::SendMessage(NetMessage const& message, NetAddr const& recipient)
 {
     if (recipient == m_socket->GetLocalAddress())
     {
-        auto netObject = m_netObjects[descriptor];
-        if (netObject)
-        {
-            netObject->ReceiveMessage(message, recipient);
-        }
+        HandleMessage(&message, recipient);
         return;
     }
     std::vector<char> buffer;
     boost::iostreams::stream<boost::iostreams::back_insert_device<std::vector<char>> > output_stream(buffer);
     boost::archive::binary_oarchive stream(output_stream, boost::archive::no_header | boost::archive::no_tracking);
-    stream << descriptor.m_typeID;
-    stream << descriptor.m_instanceID;
     stream << message.GetMessageID();
     message.Serialize(stream);
     output_stream.flush();
@@ -307,24 +310,28 @@ bool NetObjectAPI::ReceiveMessage()
     boost::iostreams::basic_array_source<char> source(recv_buf.data(), recv_buf.size());
     boost::iostreams::stream< boost::iostreams::basic_array_source <char> > input_stream(source);
     boost::archive::binary_iarchive ia(input_stream, boost::archive::no_header | boost::archive::no_tracking);
-    NetObjectDescriptor descriptor;
-    ia >> descriptor.m_typeID;
-    ia >> descriptor.m_instanceID;
 
-    auto netObject = m_netObjects[descriptor];
-    if (netObject)
+    size_t messageID;
+    ia >> messageID;
+    auto factory = m_messageFactory[messageID];
+    if (!factory)
     {
-        size_t messageID;
-        ia >> messageID;
-        auto factory = m_messageFactory[messageID];
-        if (!factory)
-        {
-            return false;
-        }
-        auto message = factory();
-        message->Deserialize(ia);
-
-        netObject->ReceiveMessage(*message, addr);
+        return false;
     }
+    auto message = factory();
+    message->Deserialize(ia);
+
+    HandleMessage(message.get(), addr);
     return true;
+}
+
+void NetObjectAPI::HandleMessage(NetMessage const* message, NetAddr const& sender)
+{
+    if (auto const* netObjectMessage = dynamic_cast<NetObjectMessage const*>(message))
+    {
+        if (auto netObject = m_netObjects[netObjectMessage->GetDescriptor()])
+        {
+            netObject->ReceiveMessage(*netObjectMessage, sender);
+        }
+    }
 }

@@ -18,10 +18,10 @@
     <ClInclude Include="NetAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Messages.h">
+    <ClInclude Include="NetSocket.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NetSocket.h">
+    <ClInclude Include="NetMessages.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

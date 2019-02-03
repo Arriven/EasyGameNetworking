@@ -118,7 +118,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Messages.h" />
+    <ClInclude Include="NetMessages.h" />
     <ClInclude Include="NetAPI.h" />
     <ClInclude Include="NetSocket.h" />
   </ItemGroup>

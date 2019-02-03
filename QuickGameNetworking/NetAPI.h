@@ -8,6 +8,7 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <xtr1common>
 #include "NetSocket.h"
 
 
@@ -30,11 +31,35 @@ public:
     virtual void Deserialize(boost::archive::binary_iarchive& stream) = 0;
 };
 
+struct NetObjectDescriptor
+{
+    unsigned char m_typeID;
+    unsigned short m_instanceID;
+};
+
+bool operator==(NetObjectDescriptor const& lhs, NetObjectDescriptor const& rhs);
+
+class NetObjectMessage : public NetMessage
+{
+public:
+    void SetDescriptor(std::unique_ptr<NetObjectDescriptor>&& descriptor) { m_descriptor = std::move(descriptor); }
+    NetObjectDescriptor const& GetDescriptor() const { return *m_descriptor; }
+    virtual void SerializeData(boost::archive::binary_oarchive& stream) const = 0;
+    virtual void DeserializeData(boost::archive::binary_iarchive& stream) = 0;
+
+private:
+    virtual void Serialize(boost::archive::binary_oarchive& stream) const override;
+    virtual void Deserialize(boost::archive::binary_iarchive& stream) override;
+
+private:
+    std::unique_ptr<NetObjectDescriptor> m_descriptor;
+};
+
 #define DEFINE_NET_MESSAGE(NetMessageType) \
 public: \
     virtual size_t GetMessageID() const override { return HashMessageID(#NetMessageType); } \
-    virtual void Serialize(boost::archive::binary_oarchive& stream) const override { stream << *this; } \
-    virtual void Deserialize(boost::archive::binary_iarchive& stream) override { stream >> *this; } \
+    virtual void SerializeData(boost::archive::binary_oarchive& stream) const override { stream << *this; } \
+    virtual void DeserializeData(boost::archive::binary_iarchive& stream) override { stream >> *this; } \
 
 using NetAddr = boost::asio::ip::udp::endpoint;
 
@@ -43,14 +68,6 @@ struct NetObjectMasterData
     std::function<void(NetAddr const&)> m_replicaAddedCallback;
     std::function<void(NetAddr const&)> m_replicaLeftCallback;
 };
-
-struct NetObjectDescriptor
-{
-    unsigned char m_typeID;
-    unsigned short m_instanceID;
-};
-
-bool operator==(NetObjectDescriptor const& lhs, NetObjectDescriptor const& rhs);
 
 namespace std
 {
@@ -79,11 +96,11 @@ public:
 
     void Update();
 
-    void SendMasterBroadcast(NetMessage const& message);
-    void SendMasterBroadcastExcluding(NetMessage const& message, NetAddr const& addr);
-    void SendMasterUnicast(NetMessage const& message, NetAddr const& addr);
-    void SendReplicaMessage(NetMessage const& message);
-    void SendToAuthority(NetMessage const& message);
+    void SendMasterBroadcast(NetObjectMessage& message);
+    void SendMasterBroadcastExcluding(NetObjectMessage& message, NetAddr const& addr);
+    void SendMasterUnicast(NetObjectMessage& message, NetAddr const& addr);
+    void SendReplicaMessage(NetObjectMessage& message);
+    void SendToAuthority(NetObjectMessage& message);
 
     void ReceiveMessage(NetMessage const& message, NetAddr const& sender);
 
@@ -96,6 +113,9 @@ public:
     void OnReplicaLeft(NetAddr const& addr);
 
 private:
+    template<typename ReceiversT>
+    void SendMessage(NetObjectMessage& message, ReceiversT const& receivers);
+
     void InitMasterDiscovery();
     void SendDiscoveryMessage();
 
@@ -126,7 +146,7 @@ public:
     template<typename T> void RegisterMessage();
     template<typename T> bool IsMessageRegistered();
 
-    void SendMessage(NetObjectDescriptor const& descriptor, NetMessage const& message, NetAddr const& recipient);
+    void SendMessage(NetMessage const& message, NetAddr const& recipient);
 
     NetAddr GetHostAddress() const;
     NetAddr GetLocalAddress() const;
@@ -143,6 +163,7 @@ private:
 
     void ProcessMessages();
     bool ReceiveMessage();
+    void HandleMessage(NetMessage const* message, NetAddr const& sender);
 
 private:
     using NetObjectMap = std::unordered_map <NetObjectDescriptor, NetObject*>;
@@ -164,6 +185,23 @@ void NetObject::RegisterMessageHandler(std::function<void(T const&, NetAddr cons
         assert(dynamic_cast<T const*>(&message));
         handler(static_cast<T const&>(message), addr);
     };
+}
+
+template<typename ReceiversT>
+void NetObject::SendMessage(NetObjectMessage& message, ReceiversT const& receivers)
+{
+    message.SetDescriptor(std::make_unique<NetObjectDescriptor>(m_descriptor));
+    if constexpr (std::is_same_v<ReceiversT, NetAddr>)
+    {
+        NetObjectAPI::GetInstance()->SendMessage(message, receivers);
+    }
+    else
+    {
+        for (auto const& addr : receivers)
+        {
+            NetObjectAPI::GetInstance()->SendMessage(message, addr);
+        }
+    }
 }
 
 template<typename T>

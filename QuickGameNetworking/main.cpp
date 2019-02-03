@@ -4,7 +4,7 @@
 #include <mutex>
 #include <vector>
 #include "NetAPI.h"
-#include "Messages.h"
+#include "NetMessages.h"
 
 class MTQueue
 {

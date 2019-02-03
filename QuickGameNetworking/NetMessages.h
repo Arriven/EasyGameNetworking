@@ -1,7 +1,7 @@
 #pragma once
 #include "NetAPI.h"
 
-class TextMessage : public NetMessage
+class TextMessage : public NetObjectMessage
 {
     DEFINE_NET_MESSAGE(TextMessage);
 
@@ -20,7 +20,7 @@ private:
     }
 };
 
-class SetMasterRequestMessage : public NetMessage
+class SetMasterRequestMessage : public NetObjectMessage
 {
     DEFINE_NET_MESSAGE(SetMasterRequestMessage);
 
@@ -41,7 +41,7 @@ private:
     }
 };
 
-class SetMasterMessage : public NetMessage
+class SetMasterMessage : public NetObjectMessage
 {
     DEFINE_NET_MESSAGE(SetMasterMessage);
 
