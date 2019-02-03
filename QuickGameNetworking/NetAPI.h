@@ -124,7 +124,6 @@ private:
 
     std::optional<NetAddr> m_masterAddr;
     std::unordered_map <size_t, MessageHandler> m_handlers;
-    std::chrono::system_clock::time_point m_lastHeartbeat;
 
     NetObjectDescriptor m_descriptor;
 };

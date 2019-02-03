@@ -50,12 +50,9 @@ NetObject::~NetObject()
 
 void NetObject::Update()
 {
-    if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastHeartbeat).count() > HEARTBEAT_INTERVAL)
+    if (!m_masterAddr)
     {
-        if (!m_masterAddr)
-        {
-            SendDiscoveryMessage();
-        }
+        SendDiscoveryMessage();
     }
 }
 
@@ -82,7 +79,6 @@ void NetObject::SendMasterUnicast(NetObjectMessage& message, NetAddr const& addr
 void NetObject::SendReplicaMessage(NetObjectMessage& message)
 {
     assert(!IsMaster());
-    m_lastHeartbeat = std::chrono::system_clock::now();
     if (m_masterAddr)
     {
         SendMessage(message, *m_masterAddr);
@@ -174,7 +170,6 @@ void NetObject::InitMasterDiscovery()
 
 void NetObject::SendDiscoveryMessage()
 {
-    m_lastHeartbeat = std::chrono::system_clock::now();
     if (!IsMaster() && !NetObjectAPI::GetInstance()->IsHost())
     {
         SetMasterRequestMessage msg;
