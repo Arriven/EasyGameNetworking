@@ -1,5 +1,6 @@
 #pragma once
 #include "NetMessagesBase.h"
+#include "NetSocket.h"
 #include <boost/serialization/vector.hpp>
 
 class SessionSetupMessage : public SingletonNetMessageBase

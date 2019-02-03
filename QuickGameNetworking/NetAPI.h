@@ -24,9 +24,6 @@ public:
     std::unique_ptr<NetObject> CreateReplicaNetObject(NetObjectDescriptor const& descriptor);
     std::unique_ptr<NetObject> CreateThirdPartyNetObject(NetObjectDescriptor const& descriptor);
 
-    template<typename T> void RegisterMessage();
-    template<typename T> bool IsMessageRegistered();
-
     void SendMessage(INetMessage const& message, NetAddr const& recipient);
 
     NetAddr GetHostAddress() const;
@@ -42,8 +39,6 @@ public:
 private:
     NetObjectAPI(bool const isHost);
     NetObjectAPI(NetObjectAPI const& other) = delete;
-
-    void InitMessageFactory();
 
     void ProcessMessages();
     bool ReceiveMessage();
@@ -63,25 +58,10 @@ private:
 };
 
 template<typename T>
-void NetObjectAPI::RegisterMessage()
-{
-    static_assert(std::is_base_of<INetMessage, T>::value, "Can be called only for classes derived from NetMessage");
-    m_messageFactory[T::MessageID] = []() { return std::make_unique<T>(); };
-}
-
-template<typename T>
-bool NetObjectAPI::IsMessageRegistered()
-{
-    static_assert(std::is_base_of<INetMessage, T>::value, "Can be called only for classes derived from NetMessage");
-
-    return m_messageFactory.find(T::MessageID) != m_messageFactory.end();
-}
-
-template<typename T>
 void NetObjectAPI::RegisterMessageHandler(std::function<void(T const&, NetAddr const&)> handler)
 {
     static_assert(std::is_base_of<INetMessage, T>::value, "Can be called only for classes derived from NetMessage");
-    assert(IsMessageRegistered<T>());
+    assert(NetMessageFactory::GetInstance()->IsMessageRegistered<T>());
     m_handlers[T::MessageID] = [handler](INetMessage const& message, NetAddr const& addr)
     {
         assert(dynamic_cast<T const*>(&message));

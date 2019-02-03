@@ -27,7 +27,6 @@ NetObjectAPI::NetObjectAPI(bool const isHost)
     {
         m_socket = NetSocket(io_service);
     }
-    InitMessageFactory();
     if (!isHost)
     {
         RegisterMessageHandler<SessionSetupMessage>([this](SessionSetupMessage const& message, NetAddr const& sender)
@@ -42,12 +41,14 @@ NetObjectAPI::NetObjectAPI(bool const isHost)
 
 void NetObjectAPI::Init(bool const isHost)
 {
+    NetMessageFactory::Init();
     ms_instance.reset(new NetObjectAPI(isHost));
 }
 
 void NetObjectAPI::Shutdown()
 {
     ms_instance.reset();
+    NetMessageFactory::Shutdown();
 }
 
 void NetObjectAPI::Update()
@@ -65,7 +66,10 @@ void NetObjectAPI::Update()
     }
     else
     {
-        m_socket->Connect(GetHostAddress());
+        if (!m_socket->IsConnected(GetHostAddress()))
+        {
+            m_socket->Connect(GetHostAddress());
+        }
     }
 
     ProcessMessages();
@@ -107,14 +111,6 @@ void NetObjectAPI::RegisterNetObject(NetObjectDescriptor const& descriptor, NetO
 void NetObjectAPI::UnregisterNetObject(NetObjectDescriptor const& descriptor)
 {
     m_netObjects[descriptor] = nullptr;
-}
-
-void NetObjectAPI::InitMessageFactory()
-{
-    RegisterMessage<SessionSetupMessage>();
-    RegisterMessage<TextMessage>();
-    RegisterMessage<SetMasterRequestMessage>();
-    RegisterMessage<SetMasterMessage>();
 }
 
 void NetObjectAPI::SendMessage(INetMessage const& message, NetAddr const& recipient)
@@ -168,12 +164,11 @@ bool NetObjectAPI::ReceiveMessage()
 
     size_t messageID;
     ia >> messageID;
-    auto factory = m_messageFactory[messageID];
-    if (!factory)
+    auto message = NetMessageFactory::GetInstance()->CreateMessage(messageID);
+    if (!message)
     {
         return false;
     }
-    auto message = factory();
     message->Deserialize(ia);
 
     HandleMessage(message.get(), addr);
