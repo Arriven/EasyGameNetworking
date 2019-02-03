@@ -71,7 +71,6 @@ void NetObject::SendMasterUnicast(NetMessage const& message, NetAddr const& addr
 {
     assert(IsMaster());
     auto& replicas = m_masterData->m_replicas;
-    assert(std::find_if(replicas.begin(), replicas.end(), [&addr](ReplicaData const& replica) { return replica.m_addr == addr; }) != replicas.end());
     NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, addr);
 }
 
@@ -191,22 +190,6 @@ NetObjectAPI::NetObjectAPI(bool const isHost)
         m_socket = NetSocket(io_service);
     }
     InitMessageFactory();
-    m_socket->SetOnConnectionAddedCallback(
-        [this](NetAddr address) 
-    {
-        for (auto const& netObj : m_netObjects)
-        {
-            netObj.second->OnReplicaAdded(address);
-        }
-    });
-    m_socket->SetOnConnectionRemovedCallback(
-        [this](NetAddr address)
-    {
-        for (auto const& netObj : m_netObjects)
-        {
-            netObj.second->OnReplicaLeft(address);
-        }
-    });
 }
 
 void NetObjectAPI::Init(bool const isHost)
@@ -221,15 +204,21 @@ void NetObjectAPI::Shutdown()
 
 void NetObjectAPI::Update()
 {
-    m_socket->Update();
+    auto const [newConnections, deadConnections] = m_socket->Update();
+
     ProcessMessages();
-    for (auto& it : m_netObjects)
+
+    for (auto&[descriptor, netObject] : m_netObjects)
     {
-        auto netObject = it.second;
-        if (netObject)
+        for (auto const& deadConnection : deadConnections)
         {
-            netObject->Update();
+            netObject->OnReplicaLeft(deadConnection);
         }
+        for (auto const& newConnection : newConnections)
+        {
+            netObject->OnReplicaAdded(newConnection);
+        }
+        netObject->Update();
     }
 }
 

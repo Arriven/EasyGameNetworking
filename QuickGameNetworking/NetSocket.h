@@ -3,6 +3,7 @@
 #include <boost/asio.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
+#include <boost/container/flat_map.hpp>
 #include <optional>
 #include <vector>
 #include <chrono>
@@ -21,7 +22,7 @@ private:
 class NetConnection
 {
 public:
-    NetConnection(NetAddr const& recepient);
+    NetConnection();
 
     std::optional<NetBuffer> UpdateSend();
     std::optional<NetBuffer> UpdateRecv();
@@ -30,7 +31,6 @@ public:
     void AddRecv(NetBuffer const& packet);
 
     bool IsConnected() const;
-    NetAddr const& GetEndPoint() const { return m_endPoint; }
 
 private:
     bool NeedToSendHeartbeat() const;
@@ -42,7 +42,6 @@ private:
     std::vector<NetBuffer> m_recvQueue;
     std::chrono::system_clock::time_point m_lastSentAckTime;
     std::chrono::system_clock::time_point m_lastRecvAckTime;
-    NetAddr m_endPoint;
 };
 
 enum class ESendOptions
@@ -50,6 +49,12 @@ enum class ESendOptions
     None = 0,
     Reliable = 1,
     HighPriority = 1 >> 1
+};
+
+struct NetConnectionsUpdate
+{
+    std::vector<NetAddr> m_newConnections;
+    std::vector<NetAddr> m_deadConnections;
 };
 
 class NetSocket
@@ -61,23 +66,23 @@ public:
     void SendMessage(NetBuffer message, NetAddr recipient, ESendOptions options);
     bool RecvMessage(NetBuffer& message, NetAddr& sender);
 
-    void Update();
+    void Connect(NetAddr recipient);
+    bool IsConnected(NetAddr recipient) const;
+    std::vector<NetAddr> GetConnections() const;
+
+    NetConnectionsUpdate Update();
 
     NetAddr GetLocalAddress() const;
 
-    void SetOnConnectionAddedCallback(std::function<void(NetAddr)> callback);
-    void SetOnConnectionRemovedCallback(std::function<void(NetAddr)> callback);
-
 private:
     void ProcessMessages();
-    void KillDeadConnections();
+    std::vector<NetAddr> KillDeadConnections();
+    std::vector<NetAddr> PollNewConnections();
 
     NetConnection& GetOrCreateConnection(NetAddr recipient);
 
 private:
-    std::vector<NetConnection> m_connections;
+    boost::container::flat_map<NetAddr, NetConnection> m_connections;
     boost::asio::ip::udp::socket m_socket;
-
-    std::function<void(NetAddr)> m_onConnectionAdded;
-    std::function<void(NetAddr)> m_onConnectionRemoved;
+    std::vector<NetAddr> m_newConnections;
 };

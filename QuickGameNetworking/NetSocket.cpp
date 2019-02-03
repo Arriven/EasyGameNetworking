@@ -1,14 +1,22 @@
 #include "NetSocket.h"
 #include <iostream>
+#include <boost/range/adaptor/map.hpp>
+#include <boost/range/adaptor/filtered.hpp>
+#include <boost/range/algorithm.hpp>
+#include <boost/range/algorithm_ext.hpp>
 
+#ifdef _DEBUG
 size_t constexpr HEARTBEAT_INTERVAL = 5000;
 size_t constexpr KEEP_AVILE_TIME = 2000000;
+#else
+size_t constexpr HEARTBEAT_INTERVAL = 100;
+size_t constexpr KEEP_AVILE_TIME = 2000;
+#endif
 size_t constexpr MAX_READ_SIZE = 1024;
 
-NetConnection::NetConnection(NetAddr const& recepient)
-    : m_endPoint(recepient)
+NetConnection::NetConnection()
+    : m_lastRecvAckTime(std::chrono::system_clock::now())
 {
-    m_lastRecvAckTime = std::chrono::system_clock::now();
 }
 
 std::optional<NetBuffer> NetConnection::UpdateSend()
@@ -32,13 +40,9 @@ std::optional<NetBuffer> NetConnection::UpdateRecv()
 {
     if (!m_recvQueue.empty())
     {
-        m_lastRecvAckTime = std::chrono::system_clock::now();
         NetBuffer recv = m_recvQueue.front();
         m_recvQueue.erase(m_recvQueue.begin());
-        if (!IsHeartbeat(recv))
-        {
-            return recv;
-        }
+        return recv;
     }
     return {};
 }
@@ -50,7 +54,11 @@ void NetConnection::AddSend(NetBuffer const& packet)
 
 void NetConnection::AddRecv(NetBuffer const& packet)
 {
-    m_recvQueue.emplace_back(packet);
+    m_lastRecvAckTime = std::chrono::system_clock::now();
+    if (!IsHeartbeat(packet))
+    {
+        m_recvQueue.emplace_back(packet);
+    }
 }
 
 bool NetConnection::IsConnected() const
@@ -92,48 +100,58 @@ void NetSocket::SendMessage(NetBuffer message, NetAddr recipient, ESendOptions o
 
 bool NetSocket::RecvMessage(NetBuffer& message, NetAddr& sender)
 {
-    for (auto& connection : m_connections)
+    for (auto& [endPoint, connection] : m_connections)
     {
         auto recv = connection.UpdateRecv();
         if (recv)
         {
             message = recv.value();
-            sender = connection.GetEndPoint();
+            sender = endPoint;
             return true;
         }
     }
     return false;
 }
 
-void NetSocket::Update()
+void NetSocket::Connect(NetAddr recipient)
 {
-    ProcessMessages();
-    KillDeadConnections();
-    for (auto& connection : m_connections)
+    GetOrCreateConnection(recipient);
+}
+
+bool NetSocket::IsConnected(NetAddr recipient) const
+{
+    return m_connections.find(recipient) != m_connections.end();
+}
+
+std::vector<NetAddr> NetSocket::GetConnections() const
+{
+    std::vector<NetAddr> connections;
+    boost::range::push_back(connections, m_connections | boost::adaptors::map_keys);
+    return connections;
+}
+
+NetConnectionsUpdate NetSocket::Update()
+{
+    for (auto& [endPoint, connection] : m_connections)
     {
         while (auto send = connection.UpdateSend())
         {
             boost::system::error_code ignored_error;
             m_socket.send_to(boost::asio::buffer(send.value()),
-                connection.GetEndPoint(), 0, ignored_error);
+                endPoint, 0, ignored_error);
             assert(!ignored_error);
         }
     }
+    ProcessMessages();
+    return {
+        PollNewConnections(),
+        KillDeadConnections()
+    };
 }
 
 NetAddr NetSocket::GetLocalAddress() const
 {
     return m_socket.local_endpoint();
-}
-
-void NetSocket::SetOnConnectionAddedCallback(std::function<void(NetAddr)> callback)
-{
-    m_onConnectionAdded = callback;
-}
-
-void NetSocket::SetOnConnectionRemovedCallback(std::function<void(NetAddr)> callback)
-{
-    m_onConnectionRemoved = callback;
 }
 
 void NetSocket::ProcessMessages()
@@ -148,7 +166,7 @@ void NetSocket::ProcessMessages()
             sender, 0, error);
         if (error)
         {
-            return;
+            break;
         }
         recv_buf.resize(bytes);
         auto& conn = GetOrCreateConnection(sender);
@@ -156,34 +174,27 @@ void NetSocket::ProcessMessages()
     }
 }
 
-void NetSocket::KillDeadConnections()
+std::vector<NetAddr> NetSocket::KillDeadConnections()
 {
-    for (auto const& connection : m_connections)
-    {
-        if (m_onConnectionRemoved && !connection.IsConnected())
-        {
-            m_onConnectionRemoved(connection.GetEndPoint());
-        }
-    }
+    auto connectionIsDead = [](auto const& connection) { return !connection.second.IsConnected(); };
+    std::vector<NetAddr> deadConnections;
+    boost::range::push_back(deadConnections, m_connections | boost::adaptors::filtered(connectionIsDead) | boost::adaptors::map_keys);
+    m_connections.erase(boost::remove_if(m_connections, connectionIsDead), m_connections.end());
+    return deadConnections;
+}
 
-    m_connections.erase(
-        std::remove_if(
-            m_connections.begin(),
-            m_connections.end(),
-            [](NetConnection const& connection) { return !connection.IsConnected(); }),
-        m_connections.end());
+std::vector<NetAddr> NetSocket::PollNewConnections()
+{
+    auto const newConnections = m_newConnections;
+    m_newConnections.clear();
+    return newConnections;
 }
 
 NetConnection& NetSocket::GetOrCreateConnection(NetAddr recipient)
 {
-    auto connIt = std::find_if(m_connections.begin(), m_connections.end(), [recipient](NetConnection const& connection) { return connection.GetEndPoint() == recipient; });
-    if (connIt == m_connections.end())
+    if (!IsConnected(recipient))
     {
-        connIt = m_connections.insert(connIt, NetConnection(recipient));
-        if (m_onConnectionAdded)
-        {
-            m_onConnectionAdded(recipient);
-        }
+        m_newConnections.push_back(recipient);
     }
-    return *connIt;
+    return m_connections[recipient];
 }
