@@ -38,8 +38,7 @@ MTQueue queue;
 
 void server_main()
 {
-    NetObjectDescriptor descr(std::make_unique<EmptyDescriptorData>());
-    auto netObj = NetObjectAPI::GetInstance()->CreateMasterNetObject(descr);
+    auto netObj = NetObjectAPI::GetInstance()->CreateMasterNetObject(NetObjectDescriptor::Create<EmptyDescriptorData>());
     netObj->RegisterMessageHandler<TextMessage>([&netObj](TextMessage const& message, NetAddr const& addr)
     {
         TextMessage chatMessage;
@@ -77,8 +76,7 @@ void server_main()
 }
 void client_main()
 {
-    NetObjectDescriptor descr(std::make_unique<EmptyDescriptorData>());
-    auto netObj = NetObjectAPI::GetInstance()->CreateReplicaNetObject(descr);
+    auto netObj = NetObjectAPI::GetInstance()->CreateReplicaNetObject(NetObjectDescriptor::Create<EmptyDescriptorData>());
     netObj->RegisterMessageHandler<TextMessage>([](TextMessage const& message, NetAddr const& addr)
     {
         std::cout << message.text << std::endl;

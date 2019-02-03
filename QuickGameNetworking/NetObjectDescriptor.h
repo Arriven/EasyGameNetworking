@@ -91,6 +91,9 @@ public:
     NetObjectDescriptor(NetObjectDescriptor const& other) : m_data(other.m_data->Clone()) {}
     NetObjectDescriptor& operator=(NetObjectDescriptor const& other) { m_data = other.m_data->Clone(); return *this; }
 
+    template<typename NetObjectDescriptorDataType, typename... ARGS>
+    static NetObjectDescriptor Create(ARGS... args);
+
     size_t GetTypeID() const { return m_data->GetTypeID(); }
 
     bool operator==(NetObjectDescriptor const& other) const { return GetTypeID() == other.GetTypeID() && *m_data == *other.m_data; }
@@ -118,6 +121,12 @@ private:
 
     BOOST_SERIALIZATION_SPLIT_MEMBER()
 };
+
+template<typename NetObjectDescriptorDataType, typename... ARGS>
+NetObjectDescriptor NetObjectDescriptor::Create(ARGS... args)
+{
+    return NetObjectDescriptor(std::make_unique<NetObjectDescriptorDataType>(std::forward<ARGS>(args)...));
+}
 
 namespace std
 {
