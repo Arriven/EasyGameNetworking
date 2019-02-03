@@ -92,7 +92,7 @@ public:
     NetSocket(boost::asio::io_service& io_service, NetAddr endPoint);
 
     void SendMessage(NetBuffer message, NetAddr recipient, ESendOptions options);
-    bool RecvMessage(NetBuffer& message, NetAddr& sender);
+    std::optional<std::pair<NetBuffer, NetAddr>> RecvMessage();
 
     void Connect(NetAddr recipient);
     bool IsConnected(NetAddr recipient) const;

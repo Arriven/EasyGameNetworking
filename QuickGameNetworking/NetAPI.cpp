@@ -156,13 +156,12 @@ void NetObjectAPI::ProcessMessages()
 
 bool NetObjectAPI::ReceiveMessage()
 {
-    std::vector<char> recv_buf;
-    boost::asio::ip::udp::endpoint addr;
-    boost::system::error_code error;
-    if (!m_socket->RecvMessage(recv_buf, addr))
+    auto const msg = m_socket->RecvMessage();
+    if (!msg)
     {
         return false;
     }
+    auto const&[recv_buf, addr] = msg.value();
     boost::iostreams::basic_array_source<char> source(recv_buf.data(), recv_buf.size());
     boost::iostreams::stream< boost::iostreams::basic_array_source <char> > input_stream(source);
     boost::archive::binary_iarchive ia(input_stream, boost::archive::no_header | boost::archive::no_tracking);

@@ -98,19 +98,17 @@ void NetSocket::SendMessage(NetBuffer message, NetAddr recipient, ESendOptions o
     conn.AddSend(message);
 }
 
-bool NetSocket::RecvMessage(NetBuffer& message, NetAddr& sender)
+std::optional<std::pair<NetBuffer, NetAddr>> NetSocket::RecvMessage()
 {
     for (auto& [endPoint, connection] : m_connections)
     {
         auto recv = connection.UpdateRecv();
         if (recv)
         {
-            message = recv.value();
-            sender = endPoint;
-            return true;
+            return { std::pair(recv.value(), endPoint) };
         }
     }
-    return false;
+    return {};
 }
 
 void NetSocket::Connect(NetAddr recipient)
