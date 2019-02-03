@@ -61,7 +61,7 @@ template<typename T>
 void NetObject::RegisterMessageHandler(std::function<void(T const&, NetAddr const&)> handler)
 {
     static_assert(std::is_base_of<NetObjectMessageBase, T>::value, "Can be called only for classes derived from NetMessage");
-    m_handlers[T().GetMessageID()] = [handler](INetMessage const& message, NetAddr const& addr)
+    m_handlers[T::MessageID] = [handler](INetMessage const& message, NetAddr const& addr)
     {
         assert(dynamic_cast<T const*>(&message));
         handler(static_cast<T const&>(message), addr);

@@ -51,6 +51,7 @@ private:
 
 #define DEFINE_NET_MESSAGE(NetMessageType) \
 public: \
-    virtual size_t GetMessageID() const override { return HashMessageID(#NetMessageType); } \
+    static constexpr size_t MessageID = HashMessageID(#NetMessageType); \
+    virtual size_t GetMessageID() const override { return MessageID; } \
     virtual void SerializeData(boost::archive::binary_oarchive& stream) const override { stream << *this; } \
     virtual void DeserializeData(boost::archive::binary_iarchive& stream) override { stream >> *this; } \
