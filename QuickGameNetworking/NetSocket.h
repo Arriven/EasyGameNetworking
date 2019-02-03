@@ -4,12 +4,13 @@
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/container/flat_map.hpp>
+#include <boost/detail/bitmask.hpp>
 #include <optional>
 #include <vector>
 #include <chrono>
 
 
-using NetBuffer = std::vector<char>;
+using NetData = std::vector<char>;
 using NetAddr = boost::asio::ip::udp::endpoint;
 
 namespace boost
@@ -38,13 +39,31 @@ namespace boost
     } // namespace serialization
 } // namespace boost
 
-BOOST_SERIALIZATION_SPLIT_FREE(NetAddr)
+BOOST_SERIALIZATION_SPLIT_FREE(NetAddr);
 
-class NetChannel
+enum class ESendOptions
 {
-private:
-    std::vector<NetBuffer> m_queue;
-    std::chrono::system_clock::time_point m_lastAck;
+    None = 0,
+    Reliable = 1,
+};
+
+BOOST_BITMASK(ESendOptions);
+
+struct NetPacket
+{
+    NetPacket() = default;
+    NetPacket(NetData const& data, ESendOptions const options, size_t const ack) : m_data(data), m_options(options), m_ack(ack) {}
+
+    NetData Serialize() const;
+    static NetPacket Deserialize(NetData const& data);
+
+    bool NeedsResend() const;
+    void UpdateSendTime();
+
+    NetData m_data;
+    ESendOptions m_options;
+    size_t m_ack;
+    std::chrono::system_clock::time_point m_lastSentTime;
 };
 
 class NetConnection
@@ -52,31 +71,30 @@ class NetConnection
 public:
     NetConnection();
 
-    std::optional<NetBuffer> UpdateSend();
-    std::optional<NetBuffer> UpdateRecv();
+    std::optional<NetData> UpdateSend();
+    std::optional<NetData> UpdateRecv();
 
-    void AddSend(NetBuffer const& packet);
-    void AddRecv(NetBuffer const& packet);
+    void AddSend(NetData const& data, ESendOptions const options);
+    void AddRecv(NetData const& data);
 
     bool IsConnected() const;
 
 private:
     bool NeedToSendHeartbeat() const;
-    bool IsHeartbeat(NetBuffer const& packet) const;
-    NetBuffer GetHeartbeatPacket() const;
+    bool IsHeartbeat(NetData const& packet) const;
+    NetData GetHeartbeatPacket() const;
+    bool IsAck(NetData const& packet) const;
+    NetData GetAckPacket(size_t const ack) const;
+    size_t GetAck(NetData const& packet) const;
 
 private:
-    std::vector<NetBuffer> m_sendQueue;
-    std::vector<NetBuffer> m_recvQueue;
-    std::chrono::system_clock::time_point m_lastSentAckTime;
-    std::chrono::system_clock::time_point m_lastRecvAckTime;
-};
-
-enum class ESendOptions
-{
-    None = 0,
-    Reliable = 1,
-    HighPriority = 1 >> 1
+    std::vector<NetPacket> m_sendQueue;
+    std::vector<NetPacket> m_recvQueue;
+    std::vector<NetData> m_ackQueue;
+    std::chrono::system_clock::time_point m_lastSendTime;
+    std::chrono::system_clock::time_point m_lastRecvTime;
+    size_t m_lastSendAck = 0;
+    size_t m_lastRecvAck = 1;
 };
 
 struct NetConnectionsUpdate
@@ -91,8 +109,8 @@ public:
     NetSocket(boost::asio::io_service& io_service);
     NetSocket(boost::asio::io_service& io_service, NetAddr endPoint);
 
-    void SendMessage(NetBuffer message, NetAddr recipient, ESendOptions options);
-    std::optional<std::pair<NetBuffer, NetAddr>> RecvMessage();
+    void SendMessage(NetData message, NetAddr recipient, ESendOptions options);
+    std::optional<std::pair<NetData, NetAddr>> RecvMessage();
 
     void Connect(NetAddr recipient);
     bool IsConnected(NetAddr recipient) const;

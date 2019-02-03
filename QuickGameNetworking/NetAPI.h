@@ -24,7 +24,7 @@ public:
     std::unique_ptr<NetObject> CreateReplicaNetObject(NetObjectDescriptor const& descriptor);
     std::unique_ptr<NetObject> CreateThirdPartyNetObject(NetObjectDescriptor const& descriptor);
 
-    void SendMessage(INetMessage const& message, NetAddr const& recipient);
+    void SendMessage(INetMessage const& message, NetAddr const& recipient, ESendOptions const options = ESendOptions::None);
 
     NetAddr GetHostAddress() const;
     NetAddr GetLocalAddress() const;

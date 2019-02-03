@@ -63,7 +63,7 @@ void NetObjectAPI::Update()
         {
             std::vector<NetAddr> connections;
             boost::range::push_back(connections, GetConnections() | boost::adaptors::filtered([addr](auto const& conn) { return conn != addr; }));
-            SendMessage(SessionSetupMessage{ connections }, addr);
+            SendMessage(SessionSetupMessage{ connections }, addr, ESendOptions::Reliable);
         }
     }
     else
@@ -115,7 +115,7 @@ void NetObjectAPI::UnregisterNetObject(NetObjectDescriptor const& descriptor)
     m_netObjects[descriptor] = nullptr;
 }
 
-void NetObjectAPI::SendMessage(INetMessage const& message, NetAddr const& recipient)
+void NetObjectAPI::SendMessage(INetMessage const& message, NetAddr const& recipient, ESendOptions const options)
 {
     if (recipient == m_socket->GetLocalAddress())
     {
@@ -128,7 +128,7 @@ void NetObjectAPI::SendMessage(INetMessage const& message, NetAddr const& recipi
     stream << message.GetMessageID();
     message.Serialize(stream);
     output_stream.flush();
-    m_socket->SendMessage(buffer, recipient, ESendOptions::None);
+    m_socket->SendMessage(buffer, recipient, options);
 }
 
 NetAddr NetObjectAPI::GetHostAddress() const
