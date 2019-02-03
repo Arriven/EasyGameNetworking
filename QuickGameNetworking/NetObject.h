@@ -14,7 +14,7 @@ struct NetObjectMasterData
 class NetObject
 {
 public:
-    using MessageHandler = std::function<void(NetMessage const&, NetAddr const&)>;
+    using MessageHandler = std::function<void(INetMessage const&, NetAddr const&)>;
 
     NetObject(bool const isMaster, NetObjectDescriptor const& descriptor);
     ~NetObject();
@@ -24,13 +24,13 @@ public:
 
     void Update();
 
-    void SendMasterBroadcast(NetObjectMessage& message);
-    void SendMasterBroadcastExcluding(NetObjectMessage& message, NetAddr const& addr);
-    void SendMasterUnicast(NetObjectMessage& message, NetAddr const& addr);
-    void SendReplicaMessage(NetObjectMessage& message);
-    void SendToAuthority(NetObjectMessage& message);
+    void SendMasterBroadcast(NetObjectMessageBase& message);
+    void SendMasterBroadcastExcluding(NetObjectMessageBase& message, NetAddr const& addr);
+    void SendMasterUnicast(NetObjectMessageBase& message, NetAddr const& addr);
+    void SendReplicaMessage(NetObjectMessageBase& message);
+    void SendToAuthority(NetObjectMessageBase& message);
 
-    void ReceiveMessage(NetMessage const& message, NetAddr const& sender);
+    void ReceiveMessage(INetMessage const& message, NetAddr const& sender);
 
     template<typename T> void RegisterMessageHandler(std::function<void(T const&, NetAddr const&)> handler);
 
@@ -42,7 +42,8 @@ public:
 
 private:
     template<typename ReceiversT>
-    void SendMessage(NetObjectMessage& message, ReceiversT const& receivers);
+    void SendMessageHelper(NetObjectMessageBase& message, ReceiversT const& receivers);
+    void SendMessage(NetObjectMessageBase const& message, NetAddr const& addr);
 
     void InitMasterDiscovery();
     void SendDiscoveryMessage();
@@ -55,3 +56,31 @@ private:
 
     NetObjectDescriptor m_descriptor;
 };
+
+template<typename T>
+void NetObject::RegisterMessageHandler(std::function<void(T const&, NetAddr const&)> handler)
+{
+    static_assert(std::is_base_of<NetObjectMessageBase, T>::value, "Can be called only for classes derived from NetMessage");
+    m_handlers[T().GetMessageID()] = [handler](INetMessage const& message, NetAddr const& addr)
+    {
+        assert(dynamic_cast<T const*>(&message));
+        handler(static_cast<T const&>(message), addr);
+    };
+}
+
+template<typename ReceiversT>
+void NetObject::SendMessageHelper(NetObjectMessageBase& message, ReceiversT const& receivers)
+{
+    message.SetDescriptor(std::make_unique<NetObjectDescriptor>(m_descriptor));
+    if constexpr (std::is_same_v<ReceiversT, NetAddr>)
+    {
+        SendMessage(message, receivers);
+    }
+    else
+    {
+        for (auto const& addr : receivers)
+        {
+            SendMessage(message, addr);
+        }
+    }
+}

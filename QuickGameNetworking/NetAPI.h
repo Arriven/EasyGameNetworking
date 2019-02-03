@@ -10,9 +10,6 @@
 #include "NetMessagesBase.h"
 #include "NetObject.h"
 
-
-
-
 class NetObjectAPI
 {
 public:
@@ -30,7 +27,7 @@ public:
     template<typename T> void RegisterMessage();
     template<typename T> bool IsMessageRegistered();
 
-    void SendMessage(NetMessage const& message, NetAddr const& recipient);
+    void SendMessage(INetMessage const& message, NetAddr const& recipient);
 
     NetAddr GetHostAddress() const;
     NetAddr GetLocalAddress() const;
@@ -38,6 +35,8 @@ public:
 
     void RegisterNetObject(NetObjectDescriptor const& descriptor, NetObject* object);
     void UnregisterNetObject(NetObjectDescriptor const& descriptor);
+
+    template<typename T> void RegisterMessageHandler(std::function<void(T const&, NetAddr const&)> handler);
 
 private:
     NetObjectAPI(bool const isHost);
@@ -47,60 +46,45 @@ private:
 
     void ProcessMessages();
     bool ReceiveMessage();
-    void HandleMessage(NetMessage const* message, NetAddr const& sender);
+    void HandleMessage(INetMessage const* message, NetAddr const& sender);
 
 private:
     using NetObjectMap = std::unordered_map <NetObjectDescriptor, NetObject*>;
     NetObjectMap m_netObjects;
-    std::unordered_map <size_t, std::function<std::unique_ptr<NetMessage>()>> m_messageFactory;
+    std::unordered_map <size_t, std::function<std::unique_ptr<INetMessage>()>> m_messageFactory;
     std::optional<NetSocket> m_socket;
     bool const m_isHost;
+
+    using MessageHandler = std::function<void(INetMessage const&, NetAddr const&)>;
+    std::unordered_map <size_t, MessageHandler> m_handlers;
 
     static std::unique_ptr<NetObjectAPI> ms_instance;
 };
 
 template<typename T>
-void NetObject::RegisterMessageHandler(std::function<void(T const&, NetAddr const&)> handler)
-{
-    static_assert(std::is_base_of<NetMessage, T>::value, "Can be called only for classes derived from NetMessage");
-    assert(NetObjectAPI::GetInstance()->IsMessageRegistered<T>());
-    m_handlers[T().GetMessageID()] = [handler](NetMessage const& message, NetAddr const& addr)
-    {
-        assert(dynamic_cast<T const*>(&message));
-        handler(static_cast<T const&>(message), addr);
-    };
-}
-
-template<typename ReceiversT>
-void NetObject::SendMessage(NetObjectMessage& message, ReceiversT const& receivers)
-{
-    message.SetDescriptor(std::make_unique<NetObjectDescriptor>(m_descriptor));
-    if constexpr (std::is_same_v<ReceiversT, NetAddr>)
-    {
-        NetObjectAPI::GetInstance()->SendMessage(message, receivers);
-    }
-    else
-    {
-        for (auto const& addr : receivers)
-        {
-            NetObjectAPI::GetInstance()->SendMessage(message, addr);
-        }
-    }
-}
-
-template<typename T>
 void NetObjectAPI::RegisterMessage()
 {
-    static_assert(std::is_base_of<NetMessage, T>::value, "Can be called only for classes derived from NetMessage");
+    static_assert(std::is_base_of<INetMessage, T>::value, "Can be called only for classes derived from NetMessage");
     m_messageFactory[T().GetMessageID()] = []() { return std::make_unique<T>(); };
 }
 
 template<typename T>
 bool NetObjectAPI::IsMessageRegistered()
 {
-    static_assert(std::is_base_of<NetMessage, T>::value, "Can be called only for classes derived from NetMessage");
+    static_assert(std::is_base_of<INetMessage, T>::value, "Can be called only for classes derived from NetMessage");
 
     return m_messageFactory.find(T().GetMessageID()) != m_messageFactory.end();
 }
 
+template<typename T>
+void NetObjectAPI::RegisterMessageHandler(std::function<void(T const&, NetAddr const&)> handler)
+{
+    static_assert(std::is_base_of<INetMessage, T>::value, "Can be called only for classes derived from NetMessage");
+    assert(IsMessageRegistered<T>());
+    m_handlers[T().GetMessageID()] = [handler](INetMessage const& message, NetAddr const& addr)
+    {
+        assert(dynamic_cast<T const*>(&message));
+        handler(static_cast<T const&>(message), addr);
+    };
+}
 

@@ -9,8 +9,36 @@
 #include <chrono>
 
 
-using NetAddr = boost::asio::ip::udp::endpoint;
 using NetBuffer = std::vector<char>;
+using NetAddr = boost::asio::ip::udp::endpoint;
+
+namespace boost
+{
+    namespace serialization
+    {
+
+        template<class Archive>
+        void save(Archive& ar, NetAddr const& addr, unsigned int const version)
+        {
+            ar & addr.address().to_v4().to_ulong();
+            ar & addr.port();
+        }
+
+        template<class Archive>
+        void load(Archive& ar, NetAddr& addr, unsigned int const version)
+        {
+            unsigned long address;
+            ar & address;
+            addr.address(boost::asio::ip::address_v4(address));
+            unsigned short port;
+            ar & port;
+            addr.port(port);
+        }
+
+    } // namespace serialization
+} // namespace boost
+
+BOOST_SERIALIZATION_SPLIT_FREE(NetAddr)
 
 class NetChannel
 {

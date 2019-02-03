@@ -7,6 +7,7 @@
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 #include <boost/range/adaptor/filtered.hpp>
+#include <boost/range/algorithm_ext.hpp>
 
 size_t constexpr HEARTBEAT_INTERVAL = 500;
 size_t constexpr KEEP_AVILE_TIME = 2000;
@@ -27,6 +28,16 @@ NetObjectAPI::NetObjectAPI(bool const isHost)
         m_socket = NetSocket(io_service);
     }
     InitMessageFactory();
+    if (!isHost)
+    {
+        RegisterMessageHandler<SessionSetupMessage>([this](SessionSetupMessage const& message, NetAddr const& sender)
+        {
+            for (auto const& connection : message.m_connections)
+            {
+                m_socket->Connect(connection);
+            }
+        });
+    }
 }
 
 void NetObjectAPI::Init(bool const isHost)
@@ -42,6 +53,20 @@ void NetObjectAPI::Shutdown()
 void NetObjectAPI::Update()
 {
     auto const [newConnections, deadConnections] = m_socket->Update();
+
+    if (IsHost())
+    {
+        for (auto const& addr : newConnections)
+        {
+            std::vector<NetAddr> connections;
+            boost::range::push_back(connections, GetConnections() | boost::adaptors::filtered([addr](auto const& conn) { return conn != addr; }));
+            SendMessage(SessionSetupMessage{ connections }, addr);
+        }
+    }
+    else
+    {
+        m_socket->Connect(GetHostAddress());
+    }
 
     ProcessMessages();
 
@@ -86,12 +111,13 @@ void NetObjectAPI::UnregisterNetObject(NetObjectDescriptor const& descriptor)
 
 void NetObjectAPI::InitMessageFactory()
 {
+    RegisterMessage<SessionSetupMessage>();
     RegisterMessage<TextMessage>();
     RegisterMessage<SetMasterRequestMessage>();
     RegisterMessage<SetMasterMessage>();
 }
 
-void NetObjectAPI::SendMessage(NetMessage const& message, NetAddr const& recipient)
+void NetObjectAPI::SendMessage(INetMessage const& message, NetAddr const& recipient)
 {
     if (recipient == m_socket->GetLocalAddress())
     {
@@ -155,13 +181,21 @@ bool NetObjectAPI::ReceiveMessage()
     return true;
 }
 
-void NetObjectAPI::HandleMessage(NetMessage const* message, NetAddr const& sender)
+void NetObjectAPI::HandleMessage(INetMessage const* message, NetAddr const& sender)
 {
-    if (auto const* netObjectMessage = dynamic_cast<NetObjectMessage const*>(message))
+    if (auto const* netObjectMessage = dynamic_cast<NetObjectMessageBase const*>(message))
     {
         if (auto netObject = m_netObjects[netObjectMessage->GetDescriptor()])
         {
             netObject->ReceiveMessage(*netObjectMessage, sender);
+        }
+    }
+    else 
+    {
+        auto handlerIt = m_handlers.find(message->GetMessageID());
+        if (handlerIt != m_handlers.end())
+        {
+            handlerIt->second(*message, sender);
         }
     }
 }

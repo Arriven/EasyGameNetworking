@@ -27,41 +27,41 @@ void NetObject::Update()
     }
 }
 
-void NetObject::SendMasterBroadcast(NetObjectMessage& message)
+void NetObject::SendMasterBroadcast(NetObjectMessageBase& message)
 {
     assert(IsMaster());
-    SendMessage(message, NetObjectAPI::GetInstance()->GetConnections());
+    SendMessageHelper(message, NetObjectAPI::GetInstance()->GetConnections());
 }
 
-void NetObject::SendMasterBroadcastExcluding(NetObjectMessage& message, NetAddr const& addr)
+void NetObject::SendMasterBroadcastExcluding(NetObjectMessageBase& message, NetAddr const& addr)
 {
     assert(IsMaster());
-    SendMessage(message, NetObjectAPI::GetInstance()->GetConnections() | boost::adaptors::filtered([addr](auto const& conn) { return conn != addr; }));
+    SendMessageHelper(message, NetObjectAPI::GetInstance()->GetConnections() | boost::adaptors::filtered([addr](auto const& conn) { return conn != addr; }));
 }
 
-void NetObject::SendMasterUnicast(NetObjectMessage& message, NetAddr const& addr)
+void NetObject::SendMasterUnicast(NetObjectMessageBase& message, NetAddr const& addr)
 {
     assert(IsMaster());
     auto const replicas = NetObjectAPI::GetInstance()->GetConnections();
     assert(std::find(replicas.begin(), replicas.end(), addr) != replicas.end());
-    SendMessage(message, addr);
+    SendMessageHelper(message, addr);
 }
 
-void NetObject::SendReplicaMessage(NetObjectMessage& message)
+void NetObject::SendReplicaMessage(NetObjectMessageBase& message)
 {
     assert(!IsMaster());
     if (m_masterAddr)
     {
-        SendMessage(message, *m_masterAddr);
+        SendMessageHelper(message, *m_masterAddr);
     }
 }
 
-void NetObject::SendToAuthority(NetObjectMessage& message)
+void NetObject::SendToAuthority(NetObjectMessageBase& message)
 {
-    SendMessage(message, NetObjectAPI::GetInstance()->GetHostAddress());
+    SendMessageHelper(message, NetObjectAPI::GetInstance()->GetHostAddress());
 }
 
-void NetObject::ReceiveMessage(NetMessage const& message, NetAddr const& sender)
+void NetObject::ReceiveMessage(INetMessage const& message, NetAddr const& sender)
 {
     auto handlerIt = m_handlers.find(message.GetMessageID());
     if (handlerIt != m_handlers.end())
@@ -99,51 +99,35 @@ void NetObject::OnReplicaLeft(NetAddr const& addr)
     }
 }
 
+void NetObject::SendMessage(NetObjectMessageBase const& message, NetAddr const& addr)
+{
+    NetObjectAPI::GetInstance()->SendMessage(message, addr);
+}
+
 void NetObject::InitMasterDiscovery()
 {
-    RegisterMessageHandler<SetMasterMessage>([this](NetMessage const& message, NetAddr const addr)
-    {
-        m_masterAddr = addr;
-    });
     if (IsMaster())
     {
         RegisterMessageHandler<SetMasterRequestMessage>([this](SetMasterRequestMessage const& message, NetAddr const addr)
         {
-            if (message.m_address == 0)
-            {
-                SetMasterMessage msg;
-                SendMasterUnicast(msg, addr);
-            }
-            else
-            {
-                NetAddr requester(boost::asio::ip::address_v4(message.m_address), message.m_usPort);
-                SetMasterMessage msg;
-                SendMasterUnicast(msg, addr);
-            }
+            SetMasterMessage msg;
+            SendMasterUnicast(msg, addr);
         });
-        SetMasterMessage msg;
-        SendToAuthority(msg);
     }
-    else if (NetObjectAPI::GetInstance()->IsHost())
+    else
     {
-        RegisterMessageHandler<SetMasterRequestMessage>([this](SetMasterRequestMessage const& message, NetAddr const addr)
+        RegisterMessageHandler<SetMasterMessage>([this](INetMessage const& message, NetAddr const addr)
         {
-            if (m_masterAddr)
-            {
-                SetMasterRequestMessage forwarded;
-                forwarded.m_address = addr.address().to_v4().to_ulong();
-                forwarded.m_usPort = addr.port();
-                SendMessage(forwarded, *m_masterAddr);
-            }
+            m_masterAddr = addr;
         });
     }
 }
 
 void NetObject::SendDiscoveryMessage()
 {
-    if (!IsMaster() && !NetObjectAPI::GetInstance()->IsHost())
+    if (!IsMaster())
     {
         SetMasterRequestMessage msg;
-        SendToAuthority(msg);
+        SendMessageHelper(msg, NetObjectAPI::GetInstance()->GetConnections());
     }
 }

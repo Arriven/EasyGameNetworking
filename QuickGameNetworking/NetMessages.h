@@ -1,7 +1,29 @@
 #pragma once
 #include "NetMessagesBase.h"
+#include <boost/serialization/vector.hpp>
 
-class TextMessage : public NetObjectMessage
+class SessionSetupMessage : public SingletonNetMessageBase
+{
+    DEFINE_NET_MESSAGE(SessionSetupMessage);
+
+public:
+    SessionSetupMessage() = default;
+    SessionSetupMessage(std::vector<NetAddr> connections) : m_connections(connections) {}
+    std::vector<NetAddr> m_connections;
+
+private:
+    friend class boost::serialization::access;
+    // When the class Archive corresponds to an output archive, the
+    // & operator is defined similar to <<.  Likewise, when the class Archive
+    // is a type of input archive the & operator is defined similar to >>.
+    template<class Archive>
+    void serialize(Archive & ar, const unsigned int version)
+    {
+        ar & m_connections;
+    }
+};
+
+class TextMessage : public NetObjectMessageBase
 {
     DEFINE_NET_MESSAGE(TextMessage);
 
@@ -20,13 +42,12 @@ private:
     }
 };
 
-class SetMasterRequestMessage : public NetObjectMessage
+class SetMasterRequestMessage : public NetObjectMessageBase
 {
     DEFINE_NET_MESSAGE(SetMasterRequestMessage);
 
 public:
-    unsigned long m_address;
-    unsigned short m_usPort;
+    NetAddr m_address;
 
 private:
     friend class boost::serialization::access;
@@ -37,11 +58,10 @@ private:
     void serialize(Archive & ar, const unsigned int version)
     {
         ar & m_address;
-        ar & m_usPort;
     }
 };
 
-class SetMasterMessage : public NetObjectMessage
+class SetMasterMessage : public NetObjectMessageBase
 {
     DEFINE_NET_MESSAGE(SetMasterMessage);
 
