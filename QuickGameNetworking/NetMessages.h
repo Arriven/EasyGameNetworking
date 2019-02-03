@@ -1,5 +1,5 @@
 #pragma once
-#include "NetAPI.h"
+#include "NetMessagesBase.h"
 
 class TextMessage : public NetObjectMessage
 {

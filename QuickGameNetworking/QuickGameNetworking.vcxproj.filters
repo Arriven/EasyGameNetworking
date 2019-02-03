@@ -24,6 +24,15 @@
     <ClInclude Include="NetMessages.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NetMessagesBase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NetObjectDescriptor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NetObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -33,6 +42,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NetSocket.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NetObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NetMessagesBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

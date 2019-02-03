@@ -1,0 +1,45 @@
+#pragma once
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include "NetObjectDescriptor.h"
+
+//TODO: replace with some more advanced hash algorithm like crc32
+size_t constexpr HashMessageID(const char* p)
+{
+    size_t constexpr prime = 31;
+    if (*p)
+    {
+        return (*p) * prime + HashMessageID(++p);
+    }
+    return 0;
+}
+
+class NetMessage
+{
+public:
+    virtual size_t GetMessageID() const = 0;
+    virtual void Serialize(boost::archive::binary_oarchive& stream) const = 0;
+    virtual void Deserialize(boost::archive::binary_iarchive& stream) = 0;
+};
+
+class NetObjectMessage : public NetMessage
+{
+public:
+    void SetDescriptor(std::unique_ptr<NetObjectDescriptor>&& descriptor) { m_descriptor = std::move(descriptor); }
+    NetObjectDescriptor const& GetDescriptor() const { return *m_descriptor; }
+    virtual void SerializeData(boost::archive::binary_oarchive& stream) const = 0;
+    virtual void DeserializeData(boost::archive::binary_iarchive& stream) = 0;
+
+private:
+    virtual void Serialize(boost::archive::binary_oarchive& stream) const override;
+    virtual void Deserialize(boost::archive::binary_iarchive& stream) override;
+
+private:
+    std::unique_ptr<NetObjectDescriptor> m_descriptor;
+};
+
+#define DEFINE_NET_MESSAGE(NetMessageType) \
+public: \
+    virtual size_t GetMessageID() const override { return HashMessageID(#NetMessageType); } \
+    virtual void SerializeData(boost::archive::binary_oarchive& stream) const override { stream << *this; } \
+    virtual void DeserializeData(boost::archive::binary_iarchive& stream) override { stream >> *this; } \

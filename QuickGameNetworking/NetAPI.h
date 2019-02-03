@@ -1,132 +1,17 @@
 #pragma once
 
 #include <boost/asio.hpp>
-#include <boost/archive/binary_oarchive.hpp>
-#include <boost/archive/binary_iarchive.hpp>
 #include <chrono>
-#include <functional>
 #include <vector>
 #include <unordered_map>
 #include <memory>
 #include <xtr1common>
 #include "NetSocket.h"
+#include "NetMessagesBase.h"
+#include "NetObject.h"
 
 
-//TODO: replace with some more advanced hash algorithm like crc32
-size_t constexpr HashMessageID(const char* p)
-{
-    size_t constexpr prime = 31;
-    if (*p)
-    {
-        return (*p) * prime + HashMessageID(++p);
-    }
-    return 0;
-}
 
-class NetMessage
-{
-public:
-    virtual size_t GetMessageID() const = 0;
-    virtual void Serialize(boost::archive::binary_oarchive& stream) const = 0;
-    virtual void Deserialize(boost::archive::binary_iarchive& stream) = 0;
-};
-
-struct NetObjectDescriptor
-{
-    unsigned char m_typeID;
-    unsigned short m_instanceID;
-};
-
-bool operator==(NetObjectDescriptor const& lhs, NetObjectDescriptor const& rhs);
-
-class NetObjectMessage : public NetMessage
-{
-public:
-    void SetDescriptor(std::unique_ptr<NetObjectDescriptor>&& descriptor) { m_descriptor = std::move(descriptor); }
-    NetObjectDescriptor const& GetDescriptor() const { return *m_descriptor; }
-    virtual void SerializeData(boost::archive::binary_oarchive& stream) const = 0;
-    virtual void DeserializeData(boost::archive::binary_iarchive& stream) = 0;
-
-private:
-    virtual void Serialize(boost::archive::binary_oarchive& stream) const override;
-    virtual void Deserialize(boost::archive::binary_iarchive& stream) override;
-
-private:
-    std::unique_ptr<NetObjectDescriptor> m_descriptor;
-};
-
-#define DEFINE_NET_MESSAGE(NetMessageType) \
-public: \
-    virtual size_t GetMessageID() const override { return HashMessageID(#NetMessageType); } \
-    virtual void SerializeData(boost::archive::binary_oarchive& stream) const override { stream << *this; } \
-    virtual void DeserializeData(boost::archive::binary_iarchive& stream) override { stream >> *this; } \
-
-using NetAddr = boost::asio::ip::udp::endpoint;
-
-struct NetObjectMasterData
-{
-    std::function<void(NetAddr const&)> m_replicaAddedCallback;
-    std::function<void(NetAddr const&)> m_replicaLeftCallback;
-};
-
-namespace std
-{
-    template<>
-    class hash<NetObjectDescriptor>
-    {
-    public:
-        size_t operator()(NetObjectDescriptor const& descr) const
-        {
-            size_t data = descr.m_typeID << sizeof(unsigned short) | descr.m_instanceID;
-            return std::hash<size_t>()(data);
-        }
-    };
-}
-
-class NetObject
-{
-public:
-    using MessageHandler = std::function<void(NetMessage const&, NetAddr const&)>;
-
-    NetObject(bool const isMaster, NetObjectDescriptor const& descriptor);
-    ~NetObject();
-    NetObject(NetObject const& other) = delete;
-
-    bool IsMaster() const { return m_masterData.get() != nullptr; }
-
-    void Update();
-
-    void SendMasterBroadcast(NetObjectMessage& message);
-    void SendMasterBroadcastExcluding(NetObjectMessage& message, NetAddr const& addr);
-    void SendMasterUnicast(NetObjectMessage& message, NetAddr const& addr);
-    void SendReplicaMessage(NetObjectMessage& message);
-    void SendToAuthority(NetObjectMessage& message);
-
-    void ReceiveMessage(NetMessage const& message, NetAddr const& sender);
-
-    template<typename T> void RegisterMessageHandler(std::function<void(T const&, NetAddr const&)> handler);
-
-    void SetOnReplicaAddedCallback(std::function<void(NetAddr const&)> const& callback);
-    void SetOnReplicaLeftCallback(std::function<void(NetAddr const&)> const& callback);
-
-    void OnReplicaAdded(NetAddr const& addr);
-    void OnReplicaLeft(NetAddr const& addr);
-
-private:
-    template<typename ReceiversT>
-    void SendMessage(NetObjectMessage& message, ReceiversT const& receivers);
-
-    void InitMasterDiscovery();
-    void SendDiscoveryMessage();
-
-private:
-    std::unique_ptr<NetObjectMasterData> m_masterData;
-
-    std::optional<NetAddr> m_masterAddr;
-    std::unordered_map <size_t, MessageHandler> m_handlers;
-
-    NetObjectDescriptor m_descriptor;
-};
 
 class NetObjectAPI
 {
