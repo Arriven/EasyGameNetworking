@@ -66,6 +66,50 @@ struct NetPacket
     std::chrono::system_clock::time_point m_lastSentTime;
 };
 
+class PacketHelpers
+{
+public:
+    static bool IsHeartbeat(NetData const& packet);
+    static NetData GetHeartbeatPacket();
+    static bool IsAck(NetData const& packet);
+    static NetData GetAckPacket(size_t const ack);
+    static size_t GetAck(NetData const& packet);
+};
+
+class UnreliableChannel
+{
+public:
+    std::optional<NetData> UpdateSend();
+    std::optional<NetData> UpdateRecv();
+
+    void AddSend(NetData const& data, ESendOptions const options);
+    void AddRecv(NetPacket const& packet);
+
+private:
+    std::vector<NetPacket> m_sendQueue;
+    std::vector<NetPacket> m_recvQueue;
+    size_t m_lastSendAck = 0;
+    size_t m_lastRecvAck = 0;
+};
+
+class ReliableChannel
+{
+public:
+    std::optional<NetData> UpdateSend();
+    std::optional<NetData> UpdateRecv();
+
+    void AddSend(NetData const& data, ESendOptions const options);
+    void AddRecv(NetPacket const& packet);
+    void OnAck(size_t const ack);
+
+private:
+    std::vector<NetPacket> m_sendQueue;
+    std::vector<NetPacket> m_recvQueue;
+    std::vector<NetData> m_ackQueue;
+    size_t m_lastSendAck = 0;
+    size_t m_lastRecvAck = 1;
+};
+
 class NetConnection
 {
 public:
@@ -81,20 +125,12 @@ public:
 
 private:
     bool NeedToSendHeartbeat() const;
-    bool IsHeartbeat(NetData const& packet) const;
-    NetData GetHeartbeatPacket() const;
-    bool IsAck(NetData const& packet) const;
-    NetData GetAckPacket(size_t const ack) const;
-    size_t GetAck(NetData const& packet) const;
 
 private:
-    std::vector<NetPacket> m_sendQueue;
-    std::vector<NetPacket> m_recvQueue;
-    std::vector<NetData> m_ackQueue;
+    ReliableChannel m_reliableChannel;
+    UnreliableChannel m_unreliableChannel;
     std::chrono::system_clock::time_point m_lastSendTime;
     std::chrono::system_clock::time_point m_lastRecvTime;
-    size_t m_lastSendAck = 0;
-    size_t m_lastRecvAck = 1;
 };
 
 struct NetConnectionsUpdate

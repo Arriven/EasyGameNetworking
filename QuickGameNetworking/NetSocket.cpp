@@ -55,128 +55,22 @@ void NetPacket::UpdateSendTime()
     m_lastSentTime = std::chrono::system_clock::now();
 }
 
-NetConnection::NetConnection()
-    : m_lastRecvTime(std::chrono::system_clock::now())
-{
-}
-
-std::optional<NetData> NetConnection::UpdateSend()
-{
-    if (!m_ackQueue.empty())
-    {
-        m_lastSendTime = std::chrono::system_clock::now();
-        NetData const send = m_ackQueue.front();
-        m_ackQueue.erase(m_ackQueue.begin());
-        return send;
-    }
-    auto it = boost::find_if(m_sendQueue, [](NetPacket const& packet) { return packet.NeedsResend(); });
-    if (it != m_sendQueue.end())
-    {
-        m_lastSendTime = std::chrono::system_clock::now();
-        NetPacket& packet = *it;
-        NetData send = packet.Serialize();
-        if ((packet.m_options & ESendOptions::Reliable) != ESendOptions::None)
-        {
-            packet.UpdateSendTime();
-        }
-        else
-        {
-            m_sendQueue.erase(it);
-        }
-        return send;
-    }
-    if (NeedToSendHeartbeat())
-    {
-        m_lastSendTime = std::chrono::system_clock::now();
-        return GetHeartbeatPacket();
-    }
-    return {};
-}
-
-std::optional<NetData> NetConnection::UpdateRecv()
-{
-    if (!m_recvQueue.empty())
-    {
-        NetPacket recv = m_recvQueue.front();
-        if ((recv.m_options & ESendOptions::Reliable) != ESendOptions::None)
-        {
-            if (recv.m_ack == m_lastRecvAck)
-            {
-                m_lastRecvAck++;
-                m_recvQueue.erase(m_recvQueue.begin());
-                return recv.m_data;
-            }
-        }
-        else
-        {
-            m_recvQueue.erase(m_recvQueue.begin());
-            return recv.m_data;
-        }
-    }
-    return {};
-}
-
-void NetConnection::AddSend(NetData const& data, ESendOptions const options)
-{
-    if ((options & ESendOptions::Reliable) != ESendOptions::None)
-    {
-        m_sendQueue.emplace_back(data, options, ++m_lastSendAck);
-    }
-    else
-    {
-        m_sendQueue.emplace_back(data, options, 0);
-    }
-}
-
-void NetConnection::AddRecv(NetData const& data)
-{
-    m_lastRecvTime = std::chrono::system_clock::now();
-    if (IsHeartbeat(data))
-    {
-        return;
-    }
-    else if (IsAck(data))
-    {
-        size_t const ack = GetAck(data);
-        auto it = boost::find_if(m_sendQueue, [ack](NetPacket const& packet) { return packet.m_ack == ack; });
-        m_sendQueue.erase(it);
-        return;
-    }
-    NetPacket const packet = NetPacket::Deserialize(data);
-    if ((packet.m_options & ESendOptions::Reliable) != ESendOptions::None)
-    {
-        m_ackQueue.emplace_back(GetAckPacket(packet.m_ack));
-    }
-    m_recvQueue.emplace_back(packet);
-    boost::sort(m_recvQueue, [](NetPacket const& lhs, NetPacket const& rhs) { return lhs.m_ack < rhs.m_ack; });
-}
-
-bool NetConnection::IsConnected() const
-{
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastRecvTime).count() < KEEP_AVILE_TIME;
-}
-
-bool NetConnection::NeedToSendHeartbeat() const
-{
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastSendTime).count() >= HEARTBEAT_INTERVAL;
-}
-
-bool NetConnection::IsHeartbeat(NetData const& packet) const
+bool PacketHelpers::IsHeartbeat(NetData const& packet)
 {
     return packet.empty();
 }
 
-NetData NetConnection::GetHeartbeatPacket() const
+NetData PacketHelpers::GetHeartbeatPacket()
 {
     return NetData();
 }
 
-bool NetConnection::IsAck(NetData const& packet) const
+bool PacketHelpers::IsAck(NetData const& packet)
 {
     return packet.size() == sizeof(size_t);
 }
 
-NetData NetConnection::GetAckPacket(size_t const ack) const
+NetData PacketHelpers::GetAckPacket(size_t const ack)
 {
     NetData buffer;
     boost::iostreams::stream<boost::iostreams::back_insert_device<std::vector<char>> > output_stream(buffer);
@@ -187,7 +81,7 @@ NetData NetConnection::GetAckPacket(size_t const ack) const
     return buffer;
 }
 
-size_t NetConnection::GetAck(NetData const& packet) const
+size_t PacketHelpers::GetAck(NetData const& packet)
 {
     boost::iostreams::basic_array_source<char> source(packet.data(), packet.size());
     boost::iostreams::stream< boost::iostreams::basic_array_source <char> > input_stream(source);
@@ -195,6 +89,194 @@ size_t NetConnection::GetAck(NetData const& packet) const
     size_t ack;;
     stream >> ack;
     return ack;
+}
+
+std::optional<NetData> UnreliableChannel::UpdateSend()
+{
+    if (!m_sendQueue.empty())
+    {
+        NetPacket const& packet = m_sendQueue.front();
+        NetData const send = packet.Serialize();
+        m_sendQueue.erase(m_sendQueue.begin());
+        return send;
+    }
+    return {};
+}
+
+
+std::optional<NetData> UnreliableChannel::UpdateRecv()
+{
+    if (!m_recvQueue.empty())
+    {
+        NetPacket const& packet = m_recvQueue.front();
+        NetData const recv = packet.m_data;
+        m_recvQueue.erase(m_recvQueue.begin());
+        return recv;
+    }
+    return {};
+}
+
+void UnreliableChannel::AddSend(NetData const& data, ESendOptions const options)
+{
+    assert((options & ESendOptions::Reliable) == ESendOptions::None);
+    m_sendQueue.emplace_back(data, options, ++m_lastSendAck);
+}
+
+void UnreliableChannel::AddRecv(NetPacket const& packet)
+{
+    assert((packet.m_options & ESendOptions::Reliable) == ESendOptions::None);
+    if (packet.m_ack > m_lastRecvAck)
+    {
+        m_lastRecvAck++;
+        m_recvQueue.emplace_back(packet);
+    }
+}
+
+std::optional<NetData> ReliableChannel::UpdateSend()
+{
+    if (!m_ackQueue.empty())
+    {
+        NetData const send = m_ackQueue.front();
+        m_ackQueue.erase(m_ackQueue.begin());
+        return send;
+    }
+
+    auto it = boost::find_if(m_sendQueue, [](NetPacket const& packet) { return packet.NeedsResend(); });
+    if (it != m_sendQueue.end())
+    {
+        NetPacket& packet = *it;
+        NetData send = packet.Serialize();
+        assert((packet.m_options & ESendOptions::Reliable) != ESendOptions::None);
+        packet.UpdateSendTime();
+        return send;
+    }
+
+    return {};
+}
+
+std::optional<NetData> ReliableChannel::UpdateRecv()
+{
+    if (!m_recvQueue.empty())
+    {
+        NetPacket recv = m_recvQueue.front();
+        assert((recv.m_options & ESendOptions::Reliable) != ESendOptions::None);
+        if (recv.m_ack == m_lastRecvAck)
+        {
+            m_lastRecvAck++;
+            m_recvQueue.erase(m_recvQueue.begin());
+            return recv.m_data;
+        }
+    }
+    return {};
+}
+
+void ReliableChannel::AddSend(NetData const& data, ESendOptions const options)
+{
+    assert((options & ESendOptions::Reliable) != ESendOptions::None);
+    m_sendQueue.emplace_back(data, options, ++m_lastSendAck);
+}
+
+void ReliableChannel::AddRecv(NetPacket const& packet)
+{
+    assert((packet.m_options & ESendOptions::Reliable) != ESendOptions::None);
+    m_ackQueue.emplace_back(PacketHelpers::GetAckPacket(packet.m_ack));
+    m_recvQueue.emplace_back(packet);
+    boost::sort(m_recvQueue, [](NetPacket const& lhs, NetPacket const& rhs) { return lhs.m_ack < rhs.m_ack; });
+}
+
+void ReliableChannel::OnAck(size_t const ack)
+{
+    auto it = boost::find_if(m_sendQueue, [ack](NetPacket const& packet) { return packet.m_ack == ack; });
+    m_sendQueue.erase(it);
+}
+
+NetConnection::NetConnection()
+    : m_lastRecvTime(std::chrono::system_clock::now())
+{
+}
+
+std::optional<NetData> NetConnection::UpdateSend()
+{
+    std::optional<NetData> ret;
+
+    if (auto send = m_reliableChannel.UpdateSend())
+    {
+        ret = send;
+    }
+    else if (auto send = m_unreliableChannel.UpdateSend())
+    {
+        ret = send;
+    }
+    else if (NeedToSendHeartbeat())
+    {
+        ret = PacketHelpers::GetHeartbeatPacket();
+    }
+
+    if (ret)
+    {
+        m_lastSendTime = std::chrono::system_clock::now();
+    }
+    return ret;
+}
+
+std::optional<NetData> NetConnection::UpdateRecv()
+{
+    if (auto recv = m_reliableChannel.UpdateRecv())
+    {
+        return recv;
+    }
+    if (auto recv = m_unreliableChannel.UpdateRecv())
+    {
+        return recv;
+    }
+    return {};
+}
+
+void NetConnection::AddSend(NetData const& data, ESendOptions const options)
+{
+    if ((options & ESendOptions::Reliable) != ESendOptions::None)
+    {
+        m_reliableChannel.AddSend(data, options);
+    }
+    else
+    {
+        m_unreliableChannel.AddSend(data, options);
+    }
+}
+
+void NetConnection::AddRecv(NetData const& data)
+{
+    m_lastRecvTime = std::chrono::system_clock::now();
+    if (PacketHelpers::IsHeartbeat(data))
+    {
+        return;
+    }
+    else if (PacketHelpers::IsAck(data))
+    {
+        size_t const ack = PacketHelpers::GetAck(data);
+        m_reliableChannel.OnAck(ack);
+        return;
+    }
+
+    NetPacket const packet = NetPacket::Deserialize(data);
+    if ((packet.m_options & ESendOptions::Reliable) != ESendOptions::None)
+    {
+        m_reliableChannel.AddRecv(packet);
+    }
+    else
+    {
+        m_unreliableChannel.AddRecv(packet);
+    }
+}
+
+bool NetConnection::IsConnected() const
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastRecvTime).count() < KEEP_AVILE_TIME;
+}
+
+bool NetConnection::NeedToSendHeartbeat() const
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastSendTime).count() >= HEARTBEAT_INTERVAL;
 }
 
 NetSocket::NetSocket(boost::asio::io_service& io_service)
