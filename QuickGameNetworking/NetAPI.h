@@ -38,16 +38,8 @@ public: \
 
 using NetAddr = boost::asio::ip::udp::endpoint;
 
-struct ReplicaData
-{
-    NetAddr m_addr;
-    std::chrono::system_clock::time_point m_lastHeartbeat;
-};
-
 struct NetObjectMasterData
 {
-    std::vector<ReplicaData> m_replicas;
-
     std::function<void(NetAddr const&)> m_replicaAddedCallback;
     std::function<void(NetAddr const&)> m_replicaLeftCallback;
 };
@@ -138,6 +130,7 @@ public:
 
     NetAddr GetHostAddress() const;
     NetAddr GetLocalAddress() const;
+    std::vector<NetAddr> GetConnections() const;
 
     void RegisterNetObject(NetObjectDescriptor const& descriptor, NetObject* object);
     void UnregisterNetObject(NetObjectDescriptor const& descriptor);

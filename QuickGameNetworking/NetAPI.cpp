@@ -46,23 +46,22 @@ void NetObject::Update()
 void NetObject::SendMasterBroadcast(NetMessage const& message)
 {
     assert(IsMaster());
-    m_lastHeartbeat = std::chrono::system_clock::now();
-    auto& replicas = m_masterData->m_replicas;
+    auto const replicas = NetObjectAPI::GetInstance()->GetConnections();
     for (auto replica : replicas)
     {
-        NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, replica.m_addr);
+        NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, replica);
     }
 }
 
 void NetObject::SendMasterBroadcastExcluding(NetMessage const& message, NetAddr const& addr)
 {
     assert(IsMaster());
-    auto& replicas = m_masterData->m_replicas;
+    auto const replicas = NetObjectAPI::GetInstance()->GetConnections();
     for (auto replica : replicas)
     {
-        if (replica.m_addr != addr)
+        if (replica != addr)
         {
-            NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, replica.m_addr);
+            NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, replica);
         }
     }
 }
@@ -70,7 +69,8 @@ void NetObject::SendMasterBroadcastExcluding(NetMessage const& message, NetAddr 
 void NetObject::SendMasterUnicast(NetMessage const& message, NetAddr const& addr)
 {
     assert(IsMaster());
-    auto& replicas = m_masterData->m_replicas;
+    auto const replicas = NetObjectAPI::GetInstance()->GetConnections();
+    assert(std::find(replicas.begin(), replicas.end(), addr) != replicas.end());
     NetObjectAPI::GetInstance()->SendMessage(m_descriptor, message, addr);
 }
 
@@ -115,7 +115,6 @@ void NetObject::OnReplicaAdded(NetAddr const& addr)
 {
     if (IsMaster() && m_masterData->m_replicaAddedCallback)
     {
-        m_masterData->m_replicas.push_back({ addr, std::chrono::system_clock::now() });
         m_masterData->m_replicaAddedCallback(addr); 
     }
 }
@@ -125,7 +124,6 @@ void NetObject::OnReplicaLeft(NetAddr const& addr)
     if (IsMaster() && m_masterData->m_replicaLeftCallback)
     {
         m_masterData->m_replicaLeftCallback(addr);
-        m_masterData->m_replicas.erase(std::find_if(m_masterData->m_replicas.begin(), m_masterData->m_replicas.end(), [addr](auto const& replica) { return replica.m_addr == addr; }));
     }
 }
 
@@ -285,6 +283,11 @@ NetAddr NetObjectAPI::GetHostAddress() const
 NetAddr NetObjectAPI::GetLocalAddress() const
 {
     return m_socket->GetLocalAddress();
+}
+
+std::vector<NetAddr> NetObjectAPI::GetConnections() const
+{
+    return m_socket->GetConnections();
 }
 
 void NetObjectAPI::ProcessMessages()
