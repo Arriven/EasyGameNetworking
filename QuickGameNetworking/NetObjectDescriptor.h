@@ -43,8 +43,6 @@ private: \
     template<class Archive> void serialize(Archive & ar, const unsigned int version) {} \
 }; \
 
-DEFINE_EMPTY_NET_DESCRIPTOR_DATA(EmptyDescriptorData);
-
 class NetObjectDescriptorDataFactory
 {
 public:
@@ -141,3 +139,5 @@ namespace std
         }
     };
 }
+
+DEFINE_EMPTY_NET_DESCRIPTOR_DATA(TextNetObject);

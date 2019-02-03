@@ -25,5 +25,5 @@ std::unique_ptr<INetObjectDescriptorData> NetObjectDescriptorDataFactory::Create
 
 void NetObjectDescriptorDataFactory::RegisterTypes()
 {
-    RegisterType<EmptyDescriptorData>();
+    RegisterType<TextNetObject>();
 }
