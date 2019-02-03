@@ -71,7 +71,7 @@ void NetObject::RegisterMessageHandler(std::function<void(T const&, NetAddr cons
 template<typename ReceiversT>
 void NetObject::SendMessageHelper(NetObjectMessageBase& message, ReceiversT const& receivers)
 {
-    message.SetDescriptor(std::make_unique<NetObjectDescriptor>(m_descriptor));
+    message.SetDescriptor(m_descriptor);
     if constexpr (std::is_same_v<ReceiversT, NetAddr>)
     {
         SendMessage(message, receivers);

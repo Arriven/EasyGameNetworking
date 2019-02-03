@@ -35,8 +35,8 @@ private:
 class NetObjectMessageBase : public INetMessage
 {
 public:
-    void SetDescriptor(std::unique_ptr<NetObjectDescriptor>&& descriptor) { m_descriptor = std::move(descriptor); }
-    NetObjectDescriptor const& GetDescriptor() const { return *m_descriptor; }
+    void SetDescriptor(NetObjectDescriptor const& descriptor) { m_descriptor = descriptor; }
+    NetObjectDescriptor const& GetDescriptor() const { return m_descriptor; }
 
     virtual void SerializeData(boost::archive::binary_oarchive& stream) const = 0;
     virtual void DeserializeData(boost::archive::binary_iarchive& stream) = 0;
@@ -46,7 +46,7 @@ private:
     virtual void Deserialize(boost::archive::binary_iarchive& stream) override;
 
 private:
-    std::unique_ptr<NetObjectDescriptor> m_descriptor;
+    NetObjectDescriptor m_descriptor;
 };
 
 #define DEFINE_NET_MESSAGE(NetMessageType) \

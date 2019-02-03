@@ -130,6 +130,7 @@
     <ClCompile Include="NetAPI.cpp" />
     <ClCompile Include="NetMessagesBase.cpp" />
     <ClCompile Include="NetObject.cpp" />
+    <ClCompile Include="NetObjectDescriptor.cpp" />
     <ClCompile Include="NetSocket.cpp" />
   </ItemGroup>
   <ItemGroup>

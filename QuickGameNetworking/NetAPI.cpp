@@ -41,6 +41,7 @@ NetObjectAPI::NetObjectAPI(bool const isHost)
 
 void NetObjectAPI::Init(bool const isHost)
 {
+    NetObjectDescriptorDataFactory::Init();
     NetMessageFactory::Init();
     ms_instance.reset(new NetObjectAPI(isHost));
 }
@@ -49,6 +50,7 @@ void NetObjectAPI::Shutdown()
 {
     ms_instance.reset();
     NetMessageFactory::Shutdown();
+    NetObjectDescriptorDataFactory::Shutdown();
 }
 
 void NetObjectAPI::Update()

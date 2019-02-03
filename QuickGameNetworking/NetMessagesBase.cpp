@@ -13,16 +13,13 @@ void SingletonNetMessageBase::Deserialize(boost::archive::binary_iarchive& strea
 
 void NetObjectMessageBase::Serialize(boost::archive::binary_oarchive& stream) const
 {
-    stream << m_descriptor->m_typeID;
-    stream << m_descriptor->m_instanceID;
+    stream << m_descriptor;
     SerializeData(stream);
 }
 
 void NetObjectMessageBase::Deserialize(boost::archive::binary_iarchive& stream)
 {
-    m_descriptor.reset(new NetObjectDescriptor);
-    stream >> m_descriptor->m_typeID;
-    stream >> m_descriptor->m_instanceID;
+    stream >> m_descriptor;
     DeserializeData(stream);
 }
 

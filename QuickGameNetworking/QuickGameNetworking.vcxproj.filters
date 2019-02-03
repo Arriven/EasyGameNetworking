@@ -50,6 +50,9 @@
     <ClCompile Include="NetMessagesBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="NetObjectDescriptor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
