@@ -4,6 +4,7 @@
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/container/flat_map.hpp>
+#include <boost/container/flat_set.hpp>
 #include <boost/detail/bitmask.hpp>
 #include <optional>
 #include <vector>
@@ -60,6 +61,8 @@ struct NetPacket
     bool NeedsResend() const;
     void UpdateSendTime();
 
+    bool operator<(NetPacket const& other) const { return m_ack < other.m_ack; }
+
     NetData m_data;
     ESendOptions m_options;
     size_t m_ack;
@@ -104,7 +107,7 @@ public:
 
 private:
     std::vector<NetPacket> m_sendQueue;
-    std::vector<NetPacket> m_recvQueue;
+    boost::container::flat_set<NetPacket> m_recvQueue;
     std::vector<NetData> m_ackQueue;
     size_t m_lastSendAck = 0;
     size_t m_lastRecvAck = 1;

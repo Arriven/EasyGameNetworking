@@ -158,7 +158,7 @@ std::optional<NetData> ReliableChannel::UpdateRecv()
 {
     if (!m_recvQueue.empty())
     {
-        NetPacket recv = m_recvQueue.front();
+        NetPacket recv = *m_recvQueue.begin();
         assert((recv.m_options & ESendOptions::Reliable) != ESendOptions::None);
         if (recv.m_ack == m_lastRecvAck)
         {
@@ -180,8 +180,7 @@ void ReliableChannel::AddRecv(NetPacket const& packet)
 {
     assert((packet.m_options & ESendOptions::Reliable) != ESendOptions::None);
     m_ackQueue.emplace_back(PacketHelpers::GetAckPacket(packet.m_ack));
-    m_recvQueue.emplace_back(packet);
-    boost::sort(m_recvQueue, [](NetPacket const& lhs, NetPacket const& rhs) { return lhs.m_ack < rhs.m_ack; });
+    m_recvQueue.insert(packet);
 }
 
 void ReliableChannel::OnAck(size_t const ack)
