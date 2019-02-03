@@ -17,7 +17,8 @@ size_t constexpr KEEP_AVILE_TIME = 2000000;
 size_t constexpr HEARTBEAT_INTERVAL = 100;
 size_t constexpr KEEP_AVILE_TIME = 2000;
 #endif
-size_t constexpr RESEND_INTERVAL = 100;
+size_t constexpr RESEND_INTERVAL = 200;
+size_t constexpr HIHG_PRIORITY_RESEND_INTERVAL = 10;
 size_t constexpr MAX_READ_SIZE = 1024;
 
 
@@ -47,7 +48,9 @@ NetPacket NetPacket::Deserialize(NetData const& data)
 
 bool NetPacket::NeedsResend() const
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastSentTime).count() >= RESEND_INTERVAL;
+    auto const lastSendTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastSentTime).count();
+    return lastSendTime >= RESEND_INTERVAL ||
+        ((m_options & ESendOptions::HighPriority) != ESendOptions::None && lastSendTime >= HIHG_PRIORITY_RESEND_INTERVAL);
 }
 
 void NetPacket::UpdateSendTime()
