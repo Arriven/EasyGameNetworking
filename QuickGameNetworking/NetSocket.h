@@ -46,7 +46,6 @@ enum class ESendOptions
 {
     None = 0,
     Reliable = 1,
-    HighPriority = 1 >> 1, //Has no effect without Reliable option
 };
 
 BOOST_BITMASK(ESendOptions);

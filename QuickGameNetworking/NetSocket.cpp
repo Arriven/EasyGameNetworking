@@ -49,8 +49,7 @@ NetPacket NetPacket::Deserialize(NetData const& data)
 bool NetPacket::NeedsResend() const
 {
     auto const lastSendTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - m_lastSentTime).count();
-    return lastSendTime >= RESEND_INTERVAL ||
-        ((m_options & ESendOptions::HighPriority) != ESendOptions::None && lastSendTime >= HIHG_PRIORITY_RESEND_INTERVAL);
+    return lastSendTime >= RESEND_INTERVAL;;
 }
 
 void NetPacket::UpdateSendTime()
@@ -183,7 +182,10 @@ void ReliableChannel::AddRecv(NetPacket const& packet)
 {
     assert((packet.m_options & ESendOptions::Reliable) != ESendOptions::None);
     m_ackQueue.emplace_back(PacketHelpers::GetAckPacket(packet.m_ack));
-    m_recvQueue.insert(packet);
+    if (packet.m_ack >= m_lastRecvAck && boost::find_if(m_recvQueue, [ack = packet.m_ack](NetPacket const& recv){return recv.m_ack == ack; }) == m_recvQueue.end())
+    {
+        m_recvQueue.insert(packet);
+    }
 }
 
 void ReliableChannel::OnAck(size_t const ack)
