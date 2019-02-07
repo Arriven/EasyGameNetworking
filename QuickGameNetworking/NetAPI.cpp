@@ -11,13 +11,13 @@
 
 size_t constexpr HEARTBEAT_INTERVAL = 500;
 size_t constexpr KEEP_AVILE_TIME = 2000;
-size_t constexpr HOST_PORT = 8888;
 
 std::unique_ptr<NetObjectAPI> NetObjectAPI::ms_instance;
 boost::asio::io_service io_service;
 
-NetObjectAPI::NetObjectAPI(bool const isHost)
+NetObjectAPI::NetObjectAPI(NetAddr const& hostAddress, bool const isHost)
     : m_isHost(isHost)
+    , m_hostAddress(hostAddress)
 {
     if (isHost)
     {
@@ -39,11 +39,11 @@ NetObjectAPI::NetObjectAPI(bool const isHost)
     }
 }
 
-void NetObjectAPI::Init(bool const isHost)
+void NetObjectAPI::Init(NetAddr const& hostAddress, bool const isHost)
 {
     NetObjectDescriptorDataFactory::Init();
     NetMessageFactory::Init();
-    ms_instance.reset(new NetObjectAPI(isHost));
+    ms_instance.reset(new NetObjectAPI(hostAddress, isHost));
 }
 
 void NetObjectAPI::Shutdown()
@@ -133,8 +133,7 @@ void NetObjectAPI::SendMessage(INetMessage const& message, NetAddr const& recipi
 
 NetAddr NetObjectAPI::GetHostAddress() const
 {
-    boost::asio::ip::udp::endpoint remote_endpoint(boost::asio::ip::address::from_string("127.0.0.1"), HOST_PORT);
-    return remote_endpoint;
+    return m_hostAddress;
 }
 
 NetAddr NetObjectAPI::GetLocalAddress() const

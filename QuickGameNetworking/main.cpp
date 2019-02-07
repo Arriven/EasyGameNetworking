@@ -6,6 +6,8 @@
 #include "NetAPI.h"
 #include "NetMessages.h"
 
+size_t constexpr HOST_PORT = 8888;
+
 class MTQueue
 {
 public:
@@ -107,7 +109,8 @@ int main()
     std::cout << "Server?" << std::endl;
     std::getline(std::cin, input);
     bool isServer = (input.find("y", 0) == 0 || input.find("Y", 0) == 0);
-    NetObjectAPI::Init(isHost);
+    boost::asio::ip::udp::endpoint hostAddress(boost::asio::ip::address::from_string("127.0.0.1"), HOST_PORT);
+    NetObjectAPI::Init(hostAddress, isHost);
     if (isServer)
     {
         server_main();

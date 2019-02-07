@@ -13,7 +13,7 @@
 class NetObjectAPI
 {
 public:
-    static void Init(bool const isHost);
+    static void Init(NetAddr const& hostAddress, bool const isHost);
     static void Shutdown();
     static NetObjectAPI* GetInstance() { return ms_instance.get(); }
 
@@ -37,7 +37,7 @@ public:
     template<typename T> void UnregisterMessageHandler();
 
 private:
-    NetObjectAPI(bool const isHost);
+    NetObjectAPI(NetAddr const& hostAddress, bool const isHost);
     NetObjectAPI(NetObjectAPI const& other) = delete;
 
     void ProcessMessages();
@@ -49,6 +49,7 @@ private:
     NetObjectMap m_netObjects;
     std::unordered_map <size_t, std::function<std::unique_ptr<INetMessage>()>> m_messageFactory;
     std::optional<NetSocket> m_socket;
+    NetAddr m_hostAddress;
     bool const m_isHost;
 
     using MessageHandler = std::function<void(INetMessage const&, NetAddr const&)>;
