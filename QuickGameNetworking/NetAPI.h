@@ -5,7 +5,9 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#ifdef _MSC_VER
 #include <xtr1common>
+#endif
 #include "NetSocket.h"
 #include "NetMessagesBase.h"
 #include "NetObject.h"
