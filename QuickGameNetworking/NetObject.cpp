@@ -2,6 +2,7 @@
 #include "NetAPI.h"
 #include "NetMessages.h"
 #include <boost/range/adaptor/filtered.hpp>
+#include <chrono>
 
 NetObject::NetObject(bool const isMaster, NetObjectDescriptor const& descriptor)
     : m_descriptor(descriptor)
@@ -28,10 +29,14 @@ void NetObject::Update()
     }
     if (IsMaster())
     {
-        for (auto const&[typeId, memento] : m_mementoes)
+        for (auto&[typeId, memento] : m_mementoes)
         {
-            MementoUpdateMessage update(memento->Clone());
-            SendMasterBroadcast(update);
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - memento.m_lastUpdateTime).count() > memento.m_updateInterval)
+            {
+                MementoUpdateMessage update(memento.m_data->Clone());
+                memento.m_lastUpdateTime = std::chrono::system_clock::now();
+                SendMasterBroadcast(update);
+            }
         }
     }
 }
@@ -144,8 +149,8 @@ void NetObject::SendDiscoveryMessage()
 void NetObject::OnMementoUpdateMessage(MementoUpdateMessage const& message, NetAddr const& addr)
 {
     size_t const typeId = message.GetData()->GetTypeID();
-    auto& memento = m_mementoes[typeId];
-    memento->CopyFrom(message.GetData());
+    NetObjectMemento& memento = m_mementoes[typeId];
+    memento.m_data->CopyFrom(message.GetData());
 }
 
 template<>

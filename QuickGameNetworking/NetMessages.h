@@ -116,7 +116,6 @@ private:
     std::unique_ptr<INetData> m_data;
 };
 
-
 class TextMemento : public INetData
 {
     DEFINE_NET_CONTAINER(TextMemento);

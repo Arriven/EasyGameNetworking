@@ -6,6 +6,7 @@
 #include <optional>
 #include <functional>
 #include <boost/container/flat_map.hpp>
+#include <chrono>
 
 
 struct NetObjectMasterData
@@ -14,7 +15,12 @@ struct NetObjectMasterData
     std::function<void(NetAddr const&)> m_replicaLeftCallback;
 };
 
-using NetObjectMemento = std::unique_ptr<INetData>;
+struct NetObjectMemento
+{
+    std::unique_ptr<INetData> m_data;
+    size_t m_updateInterval;
+    std::chrono::time_point<std::chrono::system_clock> m_lastUpdateTime;
+};
 
 class NetObject
 {
@@ -38,7 +44,7 @@ public:
     void ReceiveMessage(INetMessage const& message, NetAddr const& sender);
 
     template<typename T> void RegisterMessageHandler(std::function<void(T const&, NetAddr const&)> handler);
-    template<typename T> T* RegisterMemento();
+    template<typename T> T* RegisterMemento(size_t const updateInterval = 100);
 
     void SetOnReplicaAddedCallback(std::function<void(NetAddr const&)> const& callback);
     void SetOnReplicaLeftCallback(std::function<void(NetAddr const&)> const& callback);
@@ -78,11 +84,13 @@ void NetObject::RegisterMessageHandler(std::function<void(T const&, NetAddr cons
 }
 
 template<typename T>
-T* NetObject::RegisterMemento()
+T* NetObject::RegisterMemento(size_t const updateInterval)
 {
     static_assert(std::is_base_of<INetData, T>::value, "Can be called only for classes derived from INetData");
-    m_mementoes[T::TypeID] = std::make_unique<T>();
-    return static_cast<T*>(m_mementoes[T::TypeID].get());
+    NetObjectMemento& memento = m_mementoes[T::TypeID];
+    memento.m_data = std::make_unique<T>();
+    memento.m_updateInterval = updateInterval;
+    return static_cast<T*>(memento.m_data.get());
 }
 
 template<typename ReceiversT>
