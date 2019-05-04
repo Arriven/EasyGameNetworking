@@ -1,0 +1,7 @@
+cmake_minimum_required (VERSION 2.6)
+project (QuickGameNetworking)
+find_package(Boost COMPONENTS serialization system thread)
+add_subdirectory (QuickGameNetworking)
+add_executable (Test "${PROJECT_SOURCE_DIR}/QuickGameNetworking/main.cpp")
+target_compile_features(Test PUBLIC cxx_std_17)
+target_link_libraries(Test QuickGameNetworking ${Boost_LIBRARIES})
