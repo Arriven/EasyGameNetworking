@@ -63,7 +63,7 @@ void NetObject::SendToAuthority(NetObjectMessageBase& message)
 
 void NetObject::ReceiveMessage(INetMessage const& message, NetAddr const& sender)
 {
-    auto handlerIt = m_handlers.find(message.GetMessageID());
+    auto handlerIt = m_handlers.find(message.GetTypeID());
     if (handlerIt != m_handlers.end())
     {
         handlerIt->second(message, sender);
@@ -130,4 +130,11 @@ void NetObject::SendDiscoveryMessage()
         SetMasterRequestMessage msg;
         SendMessageHelper(msg, NetObjectAPI::GetInstance()->GetConnections());
     }
+}
+
+template<>
+void NetObject::SendMessageHelper(NetObjectMessageBase& message, NetAddr const& addr)
+{
+    message.SetDescriptor(m_descriptor);
+    SendMessage(message, addr);
 }

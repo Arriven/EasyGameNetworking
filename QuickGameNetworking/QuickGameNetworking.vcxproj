@@ -118,6 +118,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="NetData.h" />
     <ClInclude Include="NetMessages.h" />
     <ClInclude Include="NetAPI.h" />
     <ClInclude Include="NetMessagesBase.h" />
@@ -128,9 +129,9 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="NetAPI.cpp" />
+    <ClCompile Include="NetData.cpp" />
     <ClCompile Include="NetMessagesBase.cpp" />
     <ClCompile Include="NetObject.cpp" />
-    <ClCompile Include="NetObjectDescriptor.cpp" />
     <ClCompile Include="NetSocket.cpp" />
   </ItemGroup>
   <ItemGroup>

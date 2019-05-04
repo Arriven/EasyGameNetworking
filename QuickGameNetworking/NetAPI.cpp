@@ -41,16 +41,14 @@ NetObjectAPI::NetObjectAPI(NetAddr const& hostAddress, bool const isHost)
 
 void NetObjectAPI::Init(NetAddr const& hostAddress, bool const isHost)
 {
-    NetObjectDescriptorDataFactory::Init();
-    NetMessageFactory::Init();
+    NetDataFactory::Init();
     ms_instance.reset(new NetObjectAPI(hostAddress, isHost));
 }
 
 void NetObjectAPI::Shutdown()
 {
     ms_instance.reset();
-    NetMessageFactory::Shutdown();
-    NetObjectDescriptorDataFactory::Shutdown();
+    NetDataFactory::Shutdown();
 }
 
 void NetObjectAPI::Update()
@@ -125,7 +123,7 @@ void NetObjectAPI::SendMessage(INetMessage const& message, NetAddr const& recipi
     std::vector<char> buffer;
     boost::iostreams::stream<boost::iostreams::back_insert_device<std::vector<char>> > output_stream(buffer);
     boost::archive::binary_oarchive stream(output_stream, boost::archive::no_header | boost::archive::no_tracking);
-    stream << message.GetMessageID();
+    stream << message.GetTypeID();
     message.Serialize(stream);
     output_stream.flush();
     m_socket->SendMessage(buffer, recipient, options);
@@ -165,7 +163,7 @@ bool NetObjectAPI::ReceiveMessage()
 
     size_t messageID;
     ia >> messageID;
-    auto message = NetMessageFactory::GetInstance()->CreateMessage(messageID);
+    auto message = NetDataFactory::GetInstance()->CreateDataContainer(messageID);
     if (!message)
     {
         return false;
@@ -187,7 +185,7 @@ void NetObjectAPI::HandleMessage(INetMessage const* message, NetAddr const& send
     }
     else 
     {
-        auto handlerIt = m_handlers.find(message->GetMessageID());
+        auto handlerIt = m_handlers.find(message->GetTypeID());
         if (handlerIt != m_handlers.end())
         {
             handlerIt->second(*message, sender);

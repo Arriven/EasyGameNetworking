@@ -2,32 +2,18 @@
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/serialization/split_member.hpp>
+#include "NetData.h"
 
-//TODO: replace with some more advanced hash algorithm like crc32
-size_t constexpr HashTypeID(const char* p)
-{
-    size_t constexpr prime = 31;
-    if (*p)
-    {
-        return (*p) * prime + HashTypeID(++p);
-    }
-    return 0;
-}
-
-class INetObjectDescriptorData
+class INetObjectDescriptorData : public INetData
 {
 public:
-    virtual size_t GetTypeID() const = 0;
-    virtual void Serialize(boost::archive::binary_oarchive& stream) const = 0;
-    virtual void Deserialize(boost::archive::binary_iarchive& stream) = 0;
     virtual std::unique_ptr<INetObjectDescriptorData> Clone() const = 0;
     virtual bool operator==(INetObjectDescriptorData const& other) = 0;
 };
 
 #define DEFINE_NET_DESCRIPTOR_DATA(NetDescriptorDataType) \
+DEFINE_NET_CONTAINER(NetDescriptorDataType) \
 public: \
-    static constexpr size_t TypeID = HashTypeID(#NetDescriptorDataType); \
-    virtual size_t GetTypeID() const override { return TypeID; } \
     virtual void Serialize(boost::archive::binary_oarchive& stream) const override { stream << *this; } \
     virtual void Deserialize(boost::archive::binary_iarchive& stream) override { stream >> *this; } \
     virtual std::unique_ptr<INetObjectDescriptorData> Clone() const { return std::make_unique<NetDescriptorDataType>(*this);}
@@ -42,44 +28,6 @@ private: \
     friend class boost::serialization::access;\
     template<class Archive> void serialize(Archive & ar, const unsigned int version) {} \
 }; \
-
-class NetObjectDescriptorDataFactory
-{
-public:
-    static void Init();
-    static void Shutdown();
-    static NetObjectDescriptorDataFactory* GetInstance() { return ms_instance.get(); }
-
-    template<typename T> void RegisterType();
-    template<typename T> bool IsTypeRegistered();
-
-    std::unique_ptr<INetObjectDescriptorData> CreateData(size_t const typeID);
-
-private:
-    NetObjectDescriptorDataFactory() = default;
-    NetObjectDescriptorDataFactory(NetObjectDescriptorDataFactory const& other) = delete;
-
-    void RegisterTypes();
-
-    std::unordered_map <size_t, std::function<std::unique_ptr<INetObjectDescriptorData>()>> m_dataFactory;
-
-    static std::unique_ptr<NetObjectDescriptorDataFactory> ms_instance;
-};
-
-template<typename T>
-void NetObjectDescriptorDataFactory::RegisterType()
-{
-    static_assert(std::is_base_of<INetObjectDescriptorData, T>::value, "Can be called only for classes derived from INetObjectDescriptorData");
-    m_dataFactory[T::TypeID] = []() { return std::make_unique<T>(); };
-}
-
-template<typename T>
-bool NetObjectDescriptorDataFactory::IsTypeRegistered()
-{
-    static_assert(std::is_base_of<INetObjectDescriptorData, T>::value, "Can be called only for classes derived from INetObjectDescriptorData");
-
-    return m_dataFactory.find(T::MessageID) != m_dataFactory.end();
-}
 
 class NetObjectDescriptor
 {
@@ -113,7 +61,7 @@ private:
     {
         size_t typeID;
         ar >> typeID;
-        m_data = NetObjectDescriptorDataFactory::GetInstance()->CreateData(typeID);
+        m_data = NetDataFactory::GetInstance()->CreateDataContainer<INetObjectDescriptorData>(typeID);
         m_data->Deserialize(ar);
     }
 

@@ -33,6 +33,9 @@
     <ClInclude Include="NetObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NetData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -50,7 +53,7 @@
     <ClCompile Include="NetMessagesBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="NetObjectDescriptor.cpp">
+    <ClCompile Include="NetData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
