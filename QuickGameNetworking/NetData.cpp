@@ -22,6 +22,9 @@ void NetDataFactory::RegisterData()
     RegisterDataContainer<TextMessage>();
     RegisterDataContainer<SetMasterRequestMessage>();
     RegisterDataContainer<SetMasterMessage>();
+    RegisterDataContainer<MementoUpdateMessage>();
+
+    RegisterDataContainer<TextMemento>();
     
     RegisterDataContainer<TextNetObject>();
 }

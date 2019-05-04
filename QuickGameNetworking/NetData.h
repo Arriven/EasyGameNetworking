@@ -21,12 +21,16 @@ public:
     virtual size_t GetTypeID() const = 0;
     virtual void Serialize(boost::archive::binary_oarchive& stream) const = 0;
     virtual void Deserialize(boost::archive::binary_iarchive& stream) = 0;
+    virtual std::unique_ptr<INetData> Clone() const = 0;
+    virtual void CopyFrom(INetData const* other) = 0;
 };
 
 #define DEFINE_NET_CONTAINER(Type) \
 public: \
     static constexpr size_t TypeID = HashTypeID(#Type); \
     virtual size_t GetTypeID() const override { return TypeID; } \
+    virtual std::unique_ptr<INetData> Clone() const { return std::make_unique<Type>(*this);} \
+    virtual void CopyFrom(INetData const* other) {assert(GetTypeID() == other->GetTypeID()); this->~Type(); new (this) Type(*static_cast<Type const*>(other));}
 
 class NetDataFactory
 {

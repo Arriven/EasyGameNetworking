@@ -12,6 +12,7 @@ NetObject::NetObject(bool const isMaster, NetObjectDescriptor const& descriptor)
         m_masterData = std::make_unique<NetObjectMasterData>();
     }
     InitMasterDiscovery();
+    RegisterMessageHandler<MementoUpdateMessage>([this](MementoUpdateMessage const& message, NetAddr const& addr) { OnMementoUpdateMessage(message, addr); });
 }
 
 NetObject::~NetObject()
@@ -24,6 +25,14 @@ void NetObject::Update()
     if (!m_masterAddr)
     {
         SendDiscoveryMessage();
+    }
+    if (IsMaster())
+    {
+        for (auto const&[typeId, memento] : m_mementoes)
+        {
+            MementoUpdateMessage update(memento->Clone());
+            SendMasterBroadcast(update);
+        }
     }
 }
 
@@ -130,6 +139,13 @@ void NetObject::SendDiscoveryMessage()
         SetMasterRequestMessage msg;
         SendMessageHelper(msg, NetObjectAPI::GetInstance()->GetConnections());
     }
+}
+
+void NetObject::OnMementoUpdateMessage(MementoUpdateMessage const& message, NetAddr const& addr)
+{
+    size_t const typeId = message.GetData()->GetTypeID();
+    auto& memento = m_mementoes[typeId];
+    memento->CopyFrom(message.GetData());
 }
 
 template<>

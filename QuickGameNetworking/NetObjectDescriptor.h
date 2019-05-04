@@ -7,7 +7,6 @@
 class INetObjectDescriptorData : public INetData
 {
 public:
-    virtual std::unique_ptr<INetObjectDescriptorData> Clone() const = 0;
     virtual bool operator==(INetObjectDescriptorData const& other) = 0;
 };
 
@@ -16,7 +15,6 @@ DEFINE_NET_CONTAINER(NetDescriptorDataType) \
 public: \
     virtual void Serialize(boost::archive::binary_oarchive& stream) const override { stream << *this; } \
     virtual void Deserialize(boost::archive::binary_iarchive& stream) override { stream >> *this; } \
-    virtual std::unique_ptr<INetObjectDescriptorData> Clone() const { return std::make_unique<NetDescriptorDataType>(*this);}
 
 #define DEFINE_EMPTY_NET_DESCRIPTOR_DATA(NetDescriptorDataType) \
 class NetDescriptorDataType : public INetObjectDescriptorData \
@@ -34,8 +32,8 @@ class NetObjectDescriptor
 public:
     NetObjectDescriptor() = default; //Invalid state
     NetObjectDescriptor(std::unique_ptr<INetObjectDescriptorData>&& data) : m_data(std::move(data)) {}
-    NetObjectDescriptor(NetObjectDescriptor const& other) : m_data(other.m_data->Clone()) {}
-    NetObjectDescriptor& operator=(NetObjectDescriptor const& other) { m_data = other.m_data->Clone(); return *this; }
+    NetObjectDescriptor(NetObjectDescriptor const& other) : m_data(other.CloneData()) {}
+    NetObjectDescriptor& operator=(NetObjectDescriptor const& other) { m_data = other.CloneData(); return *this; }
 
     template<typename NetObjectDescriptorDataType, typename... ARGS>
     static NetObjectDescriptor Create(ARGS... args);
@@ -46,6 +44,8 @@ public:
 
 private:
     std::unique_ptr<INetObjectDescriptorData> m_data;
+
+    std::unique_ptr<INetObjectDescriptorData> CloneData() const { if (!m_data) return nullptr; return std::unique_ptr<INetObjectDescriptorData>(static_cast<INetObjectDescriptorData*>(m_data->Clone().release())); }
 
     friend class boost::serialization::access;
 

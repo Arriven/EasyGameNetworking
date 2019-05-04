@@ -41,6 +41,8 @@ MTQueue queue;
 void server_main()
 {
     auto netObj = NetObjectAPI::GetInstance()->CreateMasterNetObject(NetObjectDescriptor::Create<TextNetObject>());
+    auto roomName = netObj->RegisterMemento<TextMemento>();
+    roomName->text = "Room 404";
     netObj->RegisterMessageHandler<TextMessage>([&netObj](TextMessage const& message, NetAddr const& addr)
     {
         TextMessage chatMessage;
@@ -79,9 +81,10 @@ void server_main()
 void client_main()
 {
     auto netObj = NetObjectAPI::GetInstance()->CreateReplicaNetObject(NetObjectDescriptor::Create<TextNetObject>());
-    netObj->RegisterMessageHandler<TextMessage>([](TextMessage const& message, NetAddr const& addr)
+    auto roomName = netObj->RegisterMemento<TextMemento>();
+    netObj->RegisterMessageHandler<TextMessage>([roomName](TextMessage const& message, NetAddr const& addr)
     {
-        std::cout << message.text << std::endl;
+        std::cout << "Room: " << roomName->text << " " << message.text << std::endl;
     });
     while (1)
     {

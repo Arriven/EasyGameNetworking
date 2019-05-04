@@ -76,3 +76,55 @@ private:
     {
     }
 };
+
+class MementoUpdateMessage : public NetObjectMessageBase
+{
+    DEFINE_NET_CONTAINER(MementoUpdateMessage);
+public:
+    MementoUpdateMessage() = default;
+    MementoUpdateMessage(std::unique_ptr<INetData>&& data)
+        : m_data(std::move(data))
+    {
+    }
+    MementoUpdateMessage(MementoUpdateMessage const& other)
+        : NetObjectMessageBase(other)
+        , m_data(other.m_data->Clone())
+    {
+    }
+
+    INetData const* GetData() const { return m_data.get(); }
+
+private:
+    virtual void SerializeData(boost::archive::binary_oarchive& stream) const override
+    {
+        stream << m_data->GetTypeID();
+        m_data->Serialize(stream);
+    }
+    virtual void DeserializeData(boost::archive::binary_iarchive& stream) override
+    {
+        size_t typeId;
+        stream >> typeId;
+        m_data = NetDataFactory::GetInstance()->CreateDataContainer(typeId);
+        assert(m_data);
+        if (!m_data)
+        {
+            return;
+        }
+        m_data->Deserialize(stream);
+    }
+
+    std::unique_ptr<INetData> m_data;
+};
+
+
+class TextMemento : public INetData
+{
+    DEFINE_NET_CONTAINER(TextMemento);
+
+public:
+    std::string text;
+
+private:
+    virtual void Serialize(boost::archive::binary_oarchive& stream) const override { stream << text; }
+    virtual void Deserialize(boost::archive::binary_iarchive& stream) override { stream >> text; }
+};

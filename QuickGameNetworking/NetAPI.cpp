@@ -166,6 +166,7 @@ bool NetObjectAPI::ReceiveMessage()
     auto message = NetDataFactory::GetInstance()->CreateDataContainer(messageID);
     if (!message)
     {
+        assert(false);
         return false;
     }
     message->Deserialize(ia);
