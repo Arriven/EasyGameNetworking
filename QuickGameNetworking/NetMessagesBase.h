@@ -37,4 +37,4 @@ private:
 DEFINE_NET_CONTAINER(NetMessageType) \
 public: \
     virtual void SerializeData(boost::archive::binary_oarchive& stream) const override { stream << *this; } \
-    virtual void DeserializeData(boost::archive::binary_iarchive& stream) override { stream >> *this; } \
+    virtual void DeserializeData(boost::archive::binary_iarchive& stream) override { stream >> *this; }

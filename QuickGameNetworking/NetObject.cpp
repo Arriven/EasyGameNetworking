@@ -41,38 +41,38 @@ void NetObject::Update()
     }
 }
 
-void NetObject::SendMasterBroadcast(NetObjectMessageBase& message)
+void NetObject::SendMasterBroadcast(NetObjectMessageBase& message, ESendOptions const options)
 {
     assert(IsMaster());
-    SendMessageHelper(message, NetObjectAPI::GetInstance()->GetConnections());
+    SendMessageHelper(message, NetObjectAPI::GetInstance()->GetConnections(), options);
 }
 
-void NetObject::SendMasterBroadcastExcluding(NetObjectMessageBase& message, NetAddr const& addr)
+void NetObject::SendMasterBroadcastExcluding(NetObjectMessageBase& message, NetAddr const& addr, ESendOptions const options)
 {
     assert(IsMaster());
-    SendMessageHelper(message, NetObjectAPI::GetInstance()->GetConnections() | boost::adaptors::filtered([addr](auto const& conn) { return conn != addr; }));
+    SendMessageHelper(message, NetObjectAPI::GetInstance()->GetConnections() | boost::adaptors::filtered([addr](auto const& conn) { return conn != addr; }), options);
 }
 
-void NetObject::SendMasterUnicast(NetObjectMessageBase& message, NetAddr const& addr)
+void NetObject::SendMasterUnicast(NetObjectMessageBase& message, NetAddr const& addr, ESendOptions const options)
 {
     assert(IsMaster());
     auto const replicas = NetObjectAPI::GetInstance()->GetConnections();
     assert(std::find(replicas.begin(), replicas.end(), addr) != replicas.end());
-    SendMessageHelper(message, addr);
+    SendMessageHelper(message, addr, options);
 }
 
-void NetObject::SendReplicaMessage(NetObjectMessageBase& message)
+void NetObject::SendReplicaMessage(NetObjectMessageBase& message, ESendOptions const options)
 {
     assert(!IsMaster());
     if (m_masterAddr)
     {
-        SendMessageHelper(message, *m_masterAddr);
+        SendMessageHelper(message, *m_masterAddr, options);
     }
 }
 
-void NetObject::SendToAuthority(NetObjectMessageBase& message)
+void NetObject::SendToAuthority(NetObjectMessageBase& message, ESendOptions const options)
 {
-    SendMessageHelper(message, NetObjectAPI::GetInstance()->GetHostAddress());
+    SendMessageHelper(message, NetObjectAPI::GetInstance()->GetHostAddress(), options);
 }
 
 void NetObject::ReceiveMessage(INetMessage const& message, NetAddr const& sender)
@@ -113,9 +113,9 @@ void NetObject::OnReplicaLeft(NetAddr const& addr)
     }
 }
 
-void NetObject::SendMessage(NetObjectMessageBase const& message, NetAddr const& addr)
+void NetObject::SendMessage(NetObjectMessageBase const& message, NetAddr const& addr, ESendOptions const options)
 {
-    NetObjectAPI::GetInstance()->SendMessage(message, addr);
+    NetObjectAPI::GetInstance()->SendMessage(message, addr, options);
 }
 
 void NetObject::InitMasterDiscovery()
@@ -154,8 +154,8 @@ void NetObject::OnMementoUpdateMessage(MementoUpdateMessage const& message, NetA
 }
 
 template<>
-void NetObject::SendMessageHelper(NetObjectMessageBase& message, NetAddr const& addr)
+void NetObject::SendMessageHelper(NetObjectMessageBase& message, NetAddr const& addr, ESendOptions const options)
 {
     message.SetDescriptor(m_descriptor);
-    SendMessage(message, addr);
+    SendMessage(message, addr, options);
 }

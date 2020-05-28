@@ -35,11 +35,11 @@ public:
 
     void Update();
 
-    void SendMasterBroadcast(NetObjectMessageBase& message);
-    void SendMasterBroadcastExcluding(NetObjectMessageBase& message, NetAddr const& addr);
-    void SendMasterUnicast(NetObjectMessageBase& message, NetAddr const& addr);
-    void SendReplicaMessage(NetObjectMessageBase& message);
-    void SendToAuthority(NetObjectMessageBase& message);
+    void SendMasterBroadcast(NetObjectMessageBase& message, ESendOptions const options = ESendOptions::None);
+    void SendMasterBroadcastExcluding(NetObjectMessageBase& message, NetAddr const& addr, ESendOptions const options = ESendOptions::None);
+    void SendMasterUnicast(NetObjectMessageBase& message, NetAddr const& addr, ESendOptions const options = ESendOptions::None);
+    void SendReplicaMessage(NetObjectMessageBase& message, ESendOptions const options = ESendOptions::None);
+    void SendToAuthority(NetObjectMessageBase& message, ESendOptions const options = ESendOptions::None);
 
     void ReceiveMessage(INetMessage const& message, NetAddr const& sender);
 
@@ -54,8 +54,8 @@ public:
 
 private:
     template<typename ReceiversT>
-    void SendMessageHelper(NetObjectMessageBase& message, ReceiversT const& receivers);
-    void SendMessage(NetObjectMessageBase const& message, NetAddr const& addr);
+    void SendMessageHelper(NetObjectMessageBase& message, ReceiversT const& receivers, ESendOptions const options = ESendOptions::None);
+    void SendMessage(NetObjectMessageBase const& message, NetAddr const& addr, ESendOptions const options = ESendOptions::None);
 
     void InitMasterDiscovery();
     void SendDiscoveryMessage();
@@ -94,14 +94,14 @@ T* NetObject::RegisterMemento(size_t const updateInterval)
 }
 
 template<typename ReceiversT>
-void NetObject::SendMessageHelper(NetObjectMessageBase& message, ReceiversT const& receivers)
+void NetObject::SendMessageHelper(NetObjectMessageBase& message, ReceiversT const& receivers, ESendOptions const options)
 {
     message.SetDescriptor(m_descriptor);
     for (auto const& addr : receivers)
     {
-        SendMessage(message, addr);
+        SendMessage(message, addr, options);
     }
 }
 
 template<>
-void NetObject::SendMessageHelper<NetAddr>(NetObjectMessageBase& message, NetAddr const& addr);
+void NetObject::SendMessageHelper<NetAddr>(NetObjectMessageBase& message, NetAddr const& addr, ESendOptions const options);
