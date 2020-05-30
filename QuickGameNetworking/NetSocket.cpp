@@ -191,7 +191,10 @@ void ReliableChannel::AddRecv(NetPacket const& packet)
 void ReliableChannel::OnAck(size_t const ack)
 {
     auto it = boost::find_if(m_sendQueue, [ack](NetPacket const& packet) { return packet.m_ack == ack; });
-    m_sendQueue.erase(it);
+    if (it != m_sendQueue.end())
+    {
+        m_sendQueue.erase(it);
+    }
 }
 
 NetConnection::NetConnection()
@@ -297,7 +300,7 @@ NetSocket::NetSocket(boost::asio::io_service& io_service, NetAddr endPoint)
 void NetSocket::SendMessage(NetData message, NetAddr recipient, ESendOptions options)
 {
     auto& conn = GetOrCreateConnection(recipient);
-    conn.AddSend(message, options);
+    conn.AddSend(message, ESendOptions::Reliable);
 }
 
 std::optional<std::pair<NetData, NetAddr>> NetSocket::RecvMessage()

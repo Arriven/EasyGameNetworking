@@ -179,9 +179,12 @@ void NetObjectAPI::HandleMessage(INetMessage const* message, NetAddr const& send
 {
     if (auto const* netObjectMessage = dynamic_cast<NetObjectMessageBase const*>(message))
     {
-        if (auto netObject = m_netObjects[netObjectMessage->GetDescriptor()])
+        if (m_netObjects.find(netObjectMessage->GetDescriptor()) != m_netObjects.end())
         {
-            netObject->ReceiveMessage(*netObjectMessage, sender);
+            if (auto netObject = m_netObjects[netObjectMessage->GetDescriptor()])
+            {
+                netObject->ReceiveMessage(*netObjectMessage, sender);
+            }
         }
     }
     else 
