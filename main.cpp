@@ -24,7 +24,10 @@ class ObjectDescriptor : public INetObjectDescriptorData
 public:
 	ObjectDescriptor() : ObjectDescriptor(0) {}
 	ObjectDescriptor(unsigned long id) : m_id(id) {}
-	virtual bool operator==(INetObjectDescriptorData const& other) { return m_id == static_cast<ObjectDescriptor const&>(other).m_id;  }
+	virtual bool operator==(INetObjectDescriptorData const& other)
+	{ 
+	    return m_id == static_cast<ObjectDescriptor const&>(other).m_id;
+	}
 
 private:
 	unsigned long m_id;
@@ -57,8 +60,14 @@ public:
 	float rot;
 
 private:
-	virtual void Serialize(boost::archive::binary_oarchive& stream) const override { stream << x << y << dx << dy << scale << rot; }
-	virtual void Deserialize(boost::archive::binary_iarchive& stream) override { stream >> x >> y >>dx >> dy >> scale >> rot; }
+	virtual void Serialize(boost::archive::binary_oarchive& stream) const override
+	{ 
+	    stream << x << y << dx << dy << scale << rot;
+	}
+	virtual void Deserialize(boost::archive::binary_iarchive& stream) override
+	{ 
+	    stream >> x >> y >>dx >> dy >> scale >> rot;
+	}
 };
 
 void server_main() {
