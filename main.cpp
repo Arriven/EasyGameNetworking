@@ -257,9 +257,6 @@ int main()
     // -----------
     while (!glfwWindowShouldClose(window))
     {
-	std::cout << "objects " << objects.size() <<std::endl;
-	NetObjectAPI::GetInstance()->Update();
-	std::cout << "updated" <<std::endl;
         // input
         // -----
         processInput(window);
@@ -273,6 +270,8 @@ int main()
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
 
+	
+	NetObjectAPI::GetInstance()->Update();
 	for (auto& obj : mementoes)
 	{
 	    if (isHost && (RandomFloat(0, 1) > 0.95f))
