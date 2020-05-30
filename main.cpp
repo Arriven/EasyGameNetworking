@@ -121,7 +121,8 @@ int main()
     NetDataFactory::GetInstance()->RegisterDataContainer<ObjectDescriptor>();
     NetDataFactory::GetInstance()->RegisterDataContainer<ObjectCreationMessage>();
     NetDataFactory::GetInstance()->RegisterDataContainer<ObjectSyncMemento>();
-    auto masterNetObj = NetObjectAPI::GetInstance()->CreateThirdPartyNetObject(NetObjectDescriptor::Create<ControllerDescriptor>());
+    auto masterNetObj = NetObjectAPI::GetInstance()->CreateThirdPartyNetObject(
+	    NetObjectDescriptor::Create<ControllerDescriptor>());
     std::vector<std::unique_ptr<NetObject>> objects;
     std::vector<ObjectSyncMemento*> mementoes;
     auto createObject = [&objects, &mementoes] (ObjectCreationMessage const& message)
