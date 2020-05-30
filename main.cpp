@@ -127,10 +127,12 @@ int main()
     auto createObject = [&objects, &mementoes] (ObjectCreationMessage const& message)
     {
 	std::cout<<"object created " << message.id <<std::endl; 
-	objects.emplace_back(NetObjectAPI::GetInstance()->CreateThirdPartyNetObject(NetObjectDescriptor::Create<ObjectDescriptor>(message.id)));
+	objects.emplace_back(NetObjectAPI::GetInstance()->CreateThirdPartyNetObject(
+		NetObjectDescriptor::Create<ObjectDescriptor>(message.id)));
 	mementoes.emplace_back(objects.back()->RegisterMemento<ObjectSyncMemento>());
     };
-    masterNetObj->RegisterMessageHandler<ObjectCreationMessage>([createObject](ObjectCreationMessage const& message, NetAddr const& addr){ createObject(message); });
+    masterNetObj->RegisterMessageHandler<ObjectCreationMessage>(
+	    [createObject](ObjectCreationMessage const& message, NetAddr const& addr){ createObject(message); });
 
     if (isHost)
     {
