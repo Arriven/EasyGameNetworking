@@ -1,0 +1,165 @@
+\hypertarget{main_8cpp}{}\doxysection{main.\+cpp File Reference}
+\label{main_8cpp}\index{main.cpp@{main.cpp}}
+{\ttfamily \#include $<$G\+L/glew.\+h$>$}\newline
+{\ttfamily \#include $<$G\+L\+F\+W/glfw3.\+h$>$}\newline
+{\ttfamily \#include $<$glm/glm.\+hpp$>$}\newline
+{\ttfamily \#include $<$glm/gtc/matrix\+\_\+transform.\+hpp$>$}\newline
+{\ttfamily \#include $<$glm/gtc/type\+\_\+ptr.\+hpp$>$}\newline
+{\ttfamily \#include $<$iostream$>$}\newline
+{\ttfamily \#include $<$string$>$}\newline
+{\ttfamily \#include $<$vector$>$}\newline
+{\ttfamily \#include $<$cstdlib$>$}\newline
+{\ttfamily \#include \char`\"{}Quick\+Game\+Networking/\+Net\+A\+P\+I.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}Quick\+Game\+Networking/\+Net\+Messages.\+h\char`\"{}}\newline
+Include dependency graph for main.\+cpp\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{main_8cpp__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+class \mbox{\hyperlink{classObjectDescriptor}{Object\+Descriptor}}
+\item 
+class \mbox{\hyperlink{classObjectCreationMessage}{Object\+Creation\+Message}}
+\item 
+class \mbox{\hyperlink{classObjectSyncMemento}{Object\+Sync\+Memento}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{main_8cpp_ae5e13f97257b3bdd6acdaba261a9c21b}{H\+O\+S\+T\+\_\+\+P\+O\+RT}}~8000
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{main_8cpp_acfa45056701935dc6910a1bf5f6aad43}{D\+E\+F\+I\+N\+E\+\_\+\+E\+M\+P\+T\+Y\+\_\+\+N\+E\+T\+\_\+\+D\+E\+S\+C\+R\+I\+P\+T\+O\+R\+\_\+\+D\+A\+TA}} (Controller\+Descriptor)
+\item 
+void \mbox{\hyperlink{main_8cpp_a091039daeaf36e36989a338d93e4c8d3}{server\+\_\+main}} ()
+\item 
+void \mbox{\hyperlink{main_8cpp_ae0294dff3bf6ff35b769ee8b6a3a3182}{client\+\_\+main}} ()
+\item 
+void \mbox{\hyperlink{main_8cpp_a5180f7bf2b71421af837035824a8c8ac}{framebuffer\+\_\+size\+\_\+callback}} (G\+L\+F\+Wwindow $\ast$window, int width, int height)
+\item 
+void \mbox{\hyperlink{main_8cpp_a2d03c6f2666863543429a06ef642fe6a}{process\+Input}} (G\+L\+F\+Wwindow $\ast$window)
+\item 
+float \mbox{\hyperlink{main_8cpp_a44747d9811a7abffb02f63ae648adc07}{Random\+Float}} (float a, float b)
+\item 
+int \mbox{\hyperlink{main_8cpp_ae66f6b31b5ad750f1fe042a706a4e3d4}{main}} ()
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+const unsigned int \mbox{\hyperlink{main_8cpp_a74ba59acbf346c2b19bc1ce5170f755d}{S\+C\+R\+\_\+\+W\+I\+D\+TH}} = 800
+\item 
+const unsigned int \mbox{\hyperlink{main_8cpp_aca03a77ac5a7f2e26d08cd6de43f9a17}{S\+C\+R\+\_\+\+H\+E\+I\+G\+HT}} = 600
+\item 
+const char $\ast$ \mbox{\hyperlink{main_8cpp_a94affbdd2b20c61bcc4dfdd86e1ffea6}{vertex\+Shader\+Source}}
+\item 
+const char $\ast$ \mbox{\hyperlink{main_8cpp_a64fbb08868038fa2dc1759b84fd3eb5c}{fragment\+Shader\+Source}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{main_8cpp_ae5e13f97257b3bdd6acdaba261a9c21b}\label{main_8cpp_ae5e13f97257b3bdd6acdaba261a9c21b}} 
+\index{main.cpp@{main.cpp}!HOST\_PORT@{HOST\_PORT}}
+\index{HOST\_PORT@{HOST\_PORT}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{HOST\_PORT}{HOST\_PORT}}
+{\footnotesize\ttfamily \#define H\+O\+S\+T\+\_\+\+P\+O\+RT~8000}
+
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{main_8cpp_ae0294dff3bf6ff35b769ee8b6a3a3182}\label{main_8cpp_ae0294dff3bf6ff35b769ee8b6a3a3182}} 
+\index{main.cpp@{main.cpp}!client\_main@{client\_main}}
+\index{client\_main@{client\_main}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{client\_main()}{client\_main()}}
+{\footnotesize\ttfamily void client\+\_\+main (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{main_8cpp_acfa45056701935dc6910a1bf5f6aad43}\label{main_8cpp_acfa45056701935dc6910a1bf5f6aad43}} 
+\index{main.cpp@{main.cpp}!DEFINE\_EMPTY\_NET\_DESCRIPTOR\_DATA@{DEFINE\_EMPTY\_NET\_DESCRIPTOR\_DATA}}
+\index{DEFINE\_EMPTY\_NET\_DESCRIPTOR\_DATA@{DEFINE\_EMPTY\_NET\_DESCRIPTOR\_DATA}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{DEFINE\_EMPTY\_NET\_DESCRIPTOR\_DATA()}{DEFINE\_EMPTY\_NET\_DESCRIPTOR\_DATA()}}
+{\footnotesize\ttfamily D\+E\+F\+I\+N\+E\+\_\+\+E\+M\+P\+T\+Y\+\_\+\+N\+E\+T\+\_\+\+D\+E\+S\+C\+R\+I\+P\+T\+O\+R\+\_\+\+D\+A\+TA (\begin{DoxyParamCaption}\item[{Controller\+Descriptor}]{ }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{main_8cpp_a5180f7bf2b71421af837035824a8c8ac}\label{main_8cpp_a5180f7bf2b71421af837035824a8c8ac}} 
+\index{main.cpp@{main.cpp}!framebuffer\_size\_callback@{framebuffer\_size\_callback}}
+\index{framebuffer\_size\_callback@{framebuffer\_size\_callback}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{framebuffer\_size\_callback()}{framebuffer\_size\_callback()}}
+{\footnotesize\ttfamily void framebuffer\+\_\+size\+\_\+callback (\begin{DoxyParamCaption}\item[{G\+L\+F\+Wwindow $\ast$}]{window,  }\item[{int}]{width,  }\item[{int}]{height }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{main_8cpp_ae66f6b31b5ad750f1fe042a706a4e3d4}\label{main_8cpp_ae66f6b31b5ad750f1fe042a706a4e3d4}} 
+\index{main.cpp@{main.cpp}!main@{main}}
+\index{main@{main}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{main()}{main()}}
+{\footnotesize\ttfamily int main (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{main_8cpp_a2d03c6f2666863543429a06ef642fe6a}\label{main_8cpp_a2d03c6f2666863543429a06ef642fe6a}} 
+\index{main.cpp@{main.cpp}!processInput@{processInput}}
+\index{processInput@{processInput}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{processInput()}{processInput()}}
+{\footnotesize\ttfamily void process\+Input (\begin{DoxyParamCaption}\item[{G\+L\+F\+Wwindow $\ast$}]{window }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{main_8cpp_a44747d9811a7abffb02f63ae648adc07}\label{main_8cpp_a44747d9811a7abffb02f63ae648adc07}} 
+\index{main.cpp@{main.cpp}!RandomFloat@{RandomFloat}}
+\index{RandomFloat@{RandomFloat}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{RandomFloat()}{RandomFloat()}}
+{\footnotesize\ttfamily float Random\+Float (\begin{DoxyParamCaption}\item[{float}]{a,  }\item[{float}]{b }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{main_8cpp_a091039daeaf36e36989a338d93e4c8d3}\label{main_8cpp_a091039daeaf36e36989a338d93e4c8d3}} 
+\index{main.cpp@{main.cpp}!server\_main@{server\_main}}
+\index{server\_main@{server\_main}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{server\_main()}{server\_main()}}
+{\footnotesize\ttfamily void server\+\_\+main (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{main_8cpp_a64fbb08868038fa2dc1759b84fd3eb5c}\label{main_8cpp_a64fbb08868038fa2dc1759b84fd3eb5c}} 
+\index{main.cpp@{main.cpp}!fragmentShaderSource@{fragmentShaderSource}}
+\index{fragmentShaderSource@{fragmentShaderSource}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{fragmentShaderSource}{fragmentShaderSource}}
+{\footnotesize\ttfamily const char$\ast$ fragment\+Shader\+Source}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= \textcolor{stringliteral}{"\#version 330 core\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"out vec4 FragColor;\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"void main()\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"\{\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"\}\(\backslash\)n\(\backslash\)0"}}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{main_8cpp_aca03a77ac5a7f2e26d08cd6de43f9a17}\label{main_8cpp_aca03a77ac5a7f2e26d08cd6de43f9a17}} 
+\index{main.cpp@{main.cpp}!SCR\_HEIGHT@{SCR\_HEIGHT}}
+\index{SCR\_HEIGHT@{SCR\_HEIGHT}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{SCR\_HEIGHT}{SCR\_HEIGHT}}
+{\footnotesize\ttfamily const unsigned int S\+C\+R\+\_\+\+H\+E\+I\+G\+HT = 600}
+
+\mbox{\Hypertarget{main_8cpp_a74ba59acbf346c2b19bc1ce5170f755d}\label{main_8cpp_a74ba59acbf346c2b19bc1ce5170f755d}} 
+\index{main.cpp@{main.cpp}!SCR\_WIDTH@{SCR\_WIDTH}}
+\index{SCR\_WIDTH@{SCR\_WIDTH}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{SCR\_WIDTH}{SCR\_WIDTH}}
+{\footnotesize\ttfamily const unsigned int S\+C\+R\+\_\+\+W\+I\+D\+TH = 800}
+
+\mbox{\Hypertarget{main_8cpp_a94affbdd2b20c61bcc4dfdd86e1ffea6}\label{main_8cpp_a94affbdd2b20c61bcc4dfdd86e1ffea6}} 
+\index{main.cpp@{main.cpp}!vertexShaderSource@{vertexShaderSource}}
+\index{vertexShaderSource@{vertexShaderSource}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{vertexShaderSource}{vertexShaderSource}}
+{\footnotesize\ttfamily const char$\ast$ vertex\+Shader\+Source}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= \textcolor{stringliteral}{"\#version 330 core\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"layout (location = 0) in vec3 aPos;\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"uniform mat4 transform;\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"void main()\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"\{\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"   gl\_Position = transform*vec4(aPos.x, aPos.y, aPos.z, 1.0);\(\backslash\)n"}}
+\DoxyCodeLine{    \textcolor{stringliteral}{"\}\(\backslash\)0"}}
+
+\end{DoxyCode}
