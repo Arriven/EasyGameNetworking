@@ -20,61 +20,54 @@ DEFINE_EMPTY_NET_DESCRIPTOR_DATA(ControllerDescriptor);
 
 class ObjectDescriptor : public INetObjectDescriptorData
 {
-	DEFINE_NET_DESCRIPTOR_DATA(ObjectDescriptor);
+    DEFINE_NET_DESCRIPTOR_DATA(ObjectDescriptor);
 public:
-	ObjectDescriptor() : ObjectDescriptor(0) {}
-	ObjectDescriptor(unsigned long id) : m_id(id) {}
-	virtual bool operator==(INetObjectDescriptorData const& other)
-	{ 
-	    return m_id == static_cast<ObjectDescriptor const&>(other).m_id;
-	}
+    ObjectDescriptor() : ObjectDescriptor(0) {}
+    ObjectDescriptor(std::size_t id) : m_id(id) {}
+    virtual bool operator==(INetObjectDescriptorData const& other) { return m_id == static_cast<ObjectDescriptor const&>(other).m_id; }
 
 private:
-	unsigned long m_id;
-	friend class boost::serialization::access;
-	template<class Archive> void serialize(Archive & ar, const unsigned int version) { ar & m_id; }
+    std::size_t m_id;
+    friend class boost::serialization::access;
+    template<class Archive> void serialize(Archive & ar, const std::size_t version) { ar & m_id; }
 };
 
 class ObjectCreationMessage : public NetObjectMessageBase
 {
-	DEFINE_NET_MESSAGE(ObjectCreationMessage);
+    DEFINE_NET_MESSAGE(ObjectCreationMessage);
 
 public:
-	unsigned long int id;
+    std::size_t id;
 
 private:
-	friend class boost::serialization::access;
-	template<class Archive> void serialize(Archive & ar, const unsigned int version) { ar & id; }
+    friend class boost::serialization::access;
+    template<class Archive> void serialize(Archive & ar, const std::size_t version) { ar & id; }
 };
 
 class ObjectSyncMemento : public INetData
 {
-	DEFINE_NET_CONTAINER(ObjectSyncMemento);
+    DEFINE_NET_CONTAINER(ObjectSyncMemento);
 
 public:
-	float x;
-	float y;
-	float dx;
-	float dy;
-	float scale;
-	float rot;
+    float x;
+    float y;
+    float dx;
+    float dy;
+    float scale;
+    float rot;
 
 private:
-	virtual void Serialize(boost::archive::binary_oarchive& stream) const override
-	{ 
-	    stream << x << y << dx << dy << scale << rot;
-	}
-	virtual void Deserialize(boost::archive::binary_iarchive& stream) override
-	{ 
-	    stream >> x >> y >>dx >> dy >> scale >> rot;
-	}
+    virtual void Serialize(boost::archive::binary_oarchive& stream) const override { stream << x << y << dx << dy << scale << rot; }
+    virtual void Deserialize(boost::archive::binary_iarchive& stream) override { stream >> x >> y >> dx >> dy >> scale >> rot; }
 };
 
-void server_main() {
+void server_main()
+{
 
 }
 
-void client_main() {
+void client_main()
+{
 
 }
 
@@ -84,25 +77,26 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 
 // settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const std::size_t SCR_WIDTH = 800;
+const std::size_t SCR_HEIGHT = 600;
 
 const char *vertexShaderSource = "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "uniform mat4 transform;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = transform*vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
+"layout (location = 0) in vec3 aPos;\n"
+"uniform mat4 transform;\n"
+"void main()\n"
+"{\n"
+"   gl_Position = transform*vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+"}\0";
 const char *fragmentShaderSource = "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "void main()\n"
-    "{\n"
-    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-    "}\n\0";
+"out vec4 FragColor;\n"
+"void main()\n"
+"{\n"
+"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+"}\n\0";
 
-float RandomFloat(float a, float b) {
-    float random = ((float) rand()) / (float) RAND_MAX;
+float RandomFloat(float a, float b)
+{
+    float random = ((float)rand()) / (float)RAND_MAX;
     float diff = b - a;
     float r = random * diff;
     return a + r;
@@ -121,31 +115,42 @@ int main()
     NetDataFactory::GetInstance()->RegisterDataContainer<ObjectDescriptor>();
     NetDataFactory::GetInstance()->RegisterDataContainer<ObjectCreationMessage>();
     NetDataFactory::GetInstance()->RegisterDataContainer<ObjectSyncMemento>();
-    auto masterNetObj = NetObjectAPI::GetInstance()->CreateThirdPartyNetObject(
-	    NetObjectDescriptor::Create<ControllerDescriptor>());
+    auto masterNetObj = NetObjectAPI::GetInstance()->CreateThirdPartyNetObject(NetObjectDescriptor::Create<ControllerDescriptor>());
+    std::vector<std::size_t> ids;
     std::vector<std::unique_ptr<NetObject>> objects;
     std::vector<ObjectSyncMemento*> mementoes;
-    auto createObject = [&objects, &mementoes] (ObjectCreationMessage const& message)
+    auto createObject = [&objects, &mementoes](size_t const id)
     {
-	std::cout<<"object created " << message.id <<std::endl; 
-	objects.emplace_back(NetObjectAPI::GetInstance()->CreateThirdPartyNetObject(
-		NetObjectDescriptor::Create<ObjectDescriptor>(message.id)));
-	mementoes.emplace_back(objects.back()->RegisterMemento<ObjectSyncMemento>());
+        std::cout << "object created " << id << std::endl;
+        objects.emplace_back(NetObjectAPI::GetInstance()->CreateThirdPartyNetObject(NetObjectDescriptor::Create<ObjectDescriptor>(id)));
+        mementoes.emplace_back(objects.back()->RegisterMemento<ObjectSyncMemento>());
     };
-    masterNetObj->RegisterMessageHandler<ObjectCreationMessage>(
-	    [createObject](ObjectCreationMessage const& message, NetAddr const& addr){ createObject(message); });
+    masterNetObj->RegisterMessageHandler<ObjectCreationMessage>([&ids](ObjectCreationMessage const& message, NetAddr const& addr)
+    {
+        ids.emplace_back(message.id);
+    });
 
     if (isHost)
     {
-        while(objects.size() < 100)
+        masterNetObj->SetOnReplicaAddedCallback([&ids, &masterNetObj](NetAddr const& addr)
+        {
+            for (auto const id : ids)
+            {
+                ObjectCreationMessage msg;
+                msg.id = id;
+                masterNetObj->SendMasterUnicast(msg, addr, ESendOptions::Reliable);
+            }
+        });
+        while (ids.size() < 100)
         {
             ObjectCreationMessage msg;
-	    msg.id = objects.size();
-	    masterNetObj->SendMasterBroadcast(msg, ESendOptions::Reliable);
-	    createObject(msg);
-	}
+            msg.id = objects.size();
+            masterNetObj->SendMasterBroadcast(msg, ESendOptions::Reliable);
+            createObject(msg.id);
+            ids.emplace_back(msg.id);
+        }
     }
-        
+
 
 
     // glfw: initialize and configure
@@ -207,7 +212,8 @@ int main()
     glLinkProgram(shaderProgram);
     // check for linking errors
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
+    if (!success)
+    {
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
     }
@@ -222,11 +228,11 @@ int main()
         -0.5f, -0.5f, 0.0f,  // bottom left
         -0.5f,  0.5f, 0.0f   // top left 
     };
-    unsigned int indices[] = {  // note that we start from 0!
+    GLuint indices[] = {  // note that we start from 0!
         0, 1, 3,  // first Triangle
         1, 2, 3   // second Triangle
     };
-    unsigned int VBO, VAO, EBO;
+    GLuint VBO, VAO, EBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
@@ -243,14 +249,14 @@ int main()
     glEnableVertexAttribArray(0);
 
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // remember: do NOT unbind the EBO while a VAO is active as the bound element buffer object IS stored in the VAO; keep the EBO bound.
     //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-    glBindVertexArray(0); 
+    glBindVertexArray(0);
 
 
     // uncomment this call to draw in wireframe polygons.
@@ -258,8 +264,17 @@ int main()
 
     // render loop
     // -----------
-    while (!glfwWindowShouldClose(window))
+    while (true) //!glfwWindowShouldClose(window))
     {
+        NetObjectAPI::GetInstance()->Update();
+        if (!isHost)
+        {
+            for (auto const id : ids)
+            {
+                createObject(id);
+            }
+            ids.clear();
+        }
         // input
         // -----
         processInput(window);
@@ -269,36 +284,34 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // draw our first triangle
+        //// draw our first triangle
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
 
-	
-	NetObjectAPI::GetInstance()->Update();
-	for (auto& obj : mementoes)
-	{
-	    if (isHost && (RandomFloat(0, 1) > 0.95f))
-	    {
-		obj->dx = 0.01f * RandomFloat(-1, 1);
-		obj->dy = 0.01f * RandomFloat(-1, 1);
-		obj->rot += 0.02f * RandomFloat(-1, 1);
-		obj->scale = 0.05f + 0.01f * RandomFloat(-1, 1);
-	    }
-	    obj->x += obj->dx;
-	    obj->y += obj->dy;
-	    // create transformations
+        for (auto& obj : mementoes)
+        {
+            if (isHost && (RandomFloat(0, 1) > 0.95f))
+            {
+                obj->dx = 0.01f * RandomFloat(-1, 1);
+                obj->dy = 0.01f * RandomFloat(-1, 1);
+                obj->rot += 0.02f * RandomFloat(-1, 1);
+                obj->scale = 0.05f + 0.01f * RandomFloat(-1, 1);
+            }
+            obj->x += obj->dx;
+            obj->y += obj->dy;
+            // create transformations
             glm::mat4 transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-	    transform = glm::scale(transform, glm::vec3(obj->scale, obj->scale, obj->scale));
+            transform = glm::scale(transform, glm::vec3(obj->scale, obj->scale, obj->scale));
             transform = glm::translate(transform, glm::vec3(obj->x, obj->y, 0.0f));
             transform = glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, obj->rot));
 
             // get matrix's uniform location and set matrix
-            unsigned int transformLoc = glGetUniformLocation(shaderProgram, "transform");
+            GLint transformLoc = glGetUniformLocation(shaderProgram, "transform");
             glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
 
             //glDrawArrays(GL_TRIANGLES, 0, 6);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-            // glBindVertexArray(0); // no need to unbind it every time 
+            //glBindVertexArray(0); // no need to unbind it every time 
         }
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
